@@ -4,6 +4,7 @@ import { Plus, Calendar, Check, Clock, Trash2, Sparkles } from 'lucide-react';
 import { getTodayDateString } from '../utils/dateUtils';
 
 interface TaskPeriodListProps {
+  key?: string;
   period: 'matin' | 'journée' | 'soir';
   allTasks: Task[];
   completedTaskIds: string[];
@@ -200,8 +201,10 @@ export default function TaskPeriodList({
               <input
                 ref={actionInputRef}
                 type="text"
+                dir="ltr"
                 placeholder="Ex. Réunion travail, Gym session, Learn React..."
-                className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-500"
+                className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-500 text-left"
+                style={{ direction: 'ltr', textAlign: 'left' }}
                 required
               />
             </div>

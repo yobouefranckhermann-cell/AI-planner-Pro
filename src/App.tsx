@@ -11,14 +11,14 @@ import TaskPlanner from './components/TaskPlanner';
 import SettingsPanel from './components/SettingsPanel';
 import { 
   Sunrise, Sun, Moon, BarChart2, Calendar, Award, PlusCircle, Settings, 
-  Sparkles, CheckCircle2 
+  Sparkles, CheckCircle2, User, Mail, ShieldCheck, RefreshCw, KeyRound
 } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'ai_planner_pro_state_v1';
 
 const INITIAL_PROFILE: UserProfile = {
-  name: 'Franck',
-  email: 'yobouefranckhermann@gmail.com',
+  name: '',
+  email: '',
   textScale: 1.0,
   notifications: {
     tasks: true,
@@ -46,6 +46,11 @@ export default function App() {
   const [customTasks, setCustomTasks] = useState<Task[]>([]);
   const [history, setHistory] = useState<{ [date: string]: DayProgress }>(INITIAL_HISTORY);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginName, setLoginName] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
 
   // Clock
   const [currentTime, setCurrentTime] = useState('');
@@ -90,13 +95,27 @@ export default function App() {
         setCustomTasks(loadedTasks);
 
         if (parsed.profile) {
-          setProfile({
+          const profileWithTheme = {
             ...INITIAL_PROFILE,
             ...parsed.profile,
             theme: parsed.profile.theme || 'noir' // Default to noir
-          });
+          };
+          setProfile(profileWithTheme);
+
+          // Check if auto-logged in
+          const isLogged = localStorage.getItem('ai_planner_logged_in') === 'true';
+          if (isLogged && profileWithTheme.email && profileWithTheme.name) {
+            setIsLoggedIn(true);
+            setLoginName(profileWithTheme.name || '');
+            setLoginEmail(profileWithTheme.email || '');
+          } else {
+            setLoginName('');
+            setLoginEmail('');
+          }
         } else {
           setProfile({ ...INITIAL_PROFILE, theme: 'noir' });
+          setLoginName('');
+          setLoginEmail('');
         }
         
         // Merge stored history with the default seeded history
@@ -189,6 +208,62 @@ export default function App() {
     } catch (e: any) {
       return { success: false, message: `Erreur de restauration : ${e.message}` };
     }
+  };
+
+  // 3.5. LOGIN & LOGOUT HANDLERS
+  const handleLogin = async (enteredName: string, enteredEmail: string, keepMeLoggedIn: boolean) => {
+    setLoginLoading(true);
+    const updatedProfile = {
+      ...profile,
+      name: enteredName.trim() || 'Franck',
+      email: enteredEmail.trim() || 'yobouefranckhermann@gmail.com',
+    };
+    
+    setProfile(updatedProfile);
+    saveStateToLocalStorage(updatedProfile, customTasks, history);
+    
+    if (keepMeLoggedIn) {
+      localStorage.setItem('ai_planner_logged_in', 'true');
+    } else {
+      localStorage.removeItem('ai_planner_logged_in');
+    }
+    
+    try {
+      const response = await fetch(`/api/state?email=${encodeURIComponent(enteredEmail.trim())}`);
+      const data = await response.json();
+      if (data.success && data.state) {
+        const cloudState: AppState = data.state;
+        if (cloudState.profile) setProfile(cloudState.profile);
+        if (cloudState.customTasks) setCustomTasks(cloudState.customTasks);
+        if (cloudState.history) setHistory(cloudState.history);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudState));
+      } else {
+        // Fresh cloud email. Sync current local storage to initiate their cloud database
+        const stateToSave = {
+          profile: updatedProfile,
+          customTasks,
+          history,
+          chatMessages,
+        };
+        await fetch(`/api/state?email=${encodeURIComponent(enteredEmail.trim())}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(stateToSave),
+        });
+      }
+    } catch (e) {
+      console.error('Error logging in & syncing', e);
+    } finally {
+      setIsLoggedIn(true);
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('ai_planner_logged_in');
+    setLoginName('');
+    setLoginEmail('');
+    setIsLoggedIn(false);
   };
 
   // 4. HANDLERS FOR TASK INTERACTION
@@ -404,217 +479,319 @@ export default function App() {
       {/* Phone container */}
       <div className={`w-full sm:max-w-md h-screen sm:h-[850px] bg-white flex flex-col relative sm:rounded-[40px] sm:shadow-2xl overflow-hidden border-4 border-slate-900/10 theme-${profile.theme || 'noir'}`}>
         
-        {/* Dynamic header with Digital Ticking clock, streak and percentage */}
-        <AIHeader
-          currentDateStr={currentDateStr}
-          currentTimeStr={currentTime}
-          streak={Object.keys(history).length}
-          completedCount={completedCount}
-          totalCount={totalCount}
-        />
+        {!isLoggedIn ? (
+          <div className="flex-1 flex flex-col justify-between p-6 bg-[#0A0B0E] text-slate-200 overflow-y-auto">
+            {/* Top Logo and Title */}
+            <div className="flex flex-col items-center text-center gap-2 mt-8 mb-6">
+              <div className="w-16 h-16 bg-emerald-500/10 rounded-full border border-emerald-500/20 flex items-center justify-center animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                <Sparkles size={32} className="text-emerald-400" />
+              </div>
+              <h2 className="text-xl font-black text-slate-100 uppercase tracking-widest font-mono mt-2">
+                Discipline Pro
+              </h2>
+              <p className="text-xs text-slate-400">
+                AI Life Coach & Stoic Task Planner
+              </p>
+            </div>
 
-        {/* Dynamic AI Coach chatbot banner */}
-        <AICoachBanner
-          userName={profile.name}
-          currentTimeStr={currentTime}
-          completedTasks={completedTasksToday.map(t => t.name)}
-          pendingTasks={pendingTasksToday.map(t => t.name)}
-          streak={Object.keys(history).length}
-          currentDateStr={currentDateStr}
-          textScale={profile.textScale}
-        />
+            {/* Inputs Form */}
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <User size={12} className="text-emerald-400" />
+                  Votre Nom Complet
+                </label>
+                <input
+                  type="text"
+                  value={loginName}
+                  onChange={(e) => setLoginName(e.target.value)}
+                  placeholder="Ex. Franck"
+                  className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-600 font-medium"
+                  required
+                />
+              </div>
 
-        {/* TABS CONTAINER (MAIN VIEWPORTS) */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-gray-50/50">
-          {activeTab === 'matin' && (
-            <TaskPeriodList
-              period="matin"
-              allTasks={allActiveTasks}
-              completedTaskIds={todayProgress.completedTaskIds}
-              onToggleTask={handleToggleTask}
-              onAddTodayAction={handleAddTodayAction}
-              onPlanFutureAction={handlePlanFutureAction}
-              onDeleteTodayAction={handleDeleteTodayAction}
-              todayActions={todayProgress.actions || []}
-              onToggleTodayAction={handleToggleTodayAction}
-              completedTodayActionsIndices={(todayProgress.actions || [])
-                .map((_, idx) => idx)
-                .filter(idx => todayProgress.completedTaskIds.includes(`custom_action_${idx}`))}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                  <Mail size={12} className="text-emerald-400" />
+                  Votre Adresse Gmail
+                </label>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="Ex. yobouefranckhermann@gmail.com"
+                  className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-600 font-medium"
+                  required
+                />
+              </div>
+
+              {/* Checkbox Rester Connecté */}
+              <label className="flex items-center gap-2 cursor-pointer mt-1 select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded-md border-slate-800 bg-[#12141C] text-emerald-500 focus:ring-0 focus:ring-offset-0 focus:outline-none cursor-pointer"
+                />
+                <span className="text-[10.5px] text-slate-400 font-medium">Rester connecté sur cet appareil</span>
+              </label>
+
+              {/* Safe & Secure Info Card */}
+              <div className="mt-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-3.5 flex items-start gap-2.5">
+                <ShieldCheck size={18} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[10.5px] font-bold text-emerald-400 uppercase tracking-wider font-mono">Garantie Sauvegarde Cloud</span>
+                  <span className="text-[10px] text-slate-400 leading-relaxed">
+                    Saisissez vos accès pour lier instantanément vos données locales à votre profil unique. Vos tâches, statistiques et historiques existants seront précieusement conservés.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <div className="mb-8">
+              <button
+                onClick={() => handleLogin(loginName, loginEmail, rememberMe)}
+                disabled={!loginName || !loginEmail || loginLoading}
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800/80 disabled:text-slate-500 text-white rounded-2xl font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loginLoading ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Vérification & Synchronisation...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={14} />
+                    <span>Se Connecter & Accéder</span>
+                  </>
+                )}
+              </button>
+              <div className="text-center text-[9px] text-slate-600 font-mono mt-4 uppercase tracking-widest">
+                Stoic AI life coach v2.1 • Cloud Sync Active
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Dynamic header with Digital Ticking clock, streak and percentage */}
+            <AIHeader
+              currentDateStr={currentDateStr}
+              currentTimeStr={currentTime}
+              streak={Object.keys(history).length}
+              completedCount={completedCount}
+              totalCount={totalCount}
+            />
+
+            {/* Dynamic AI Coach chatbot banner */}
+            <AICoachBanner
+              userName={profile.name}
+              currentTimeStr={currentTime}
+              completedTasks={completedTasksToday.map(t => t.name)}
+              pendingTasks={pendingTasksToday.map(t => t.name)}
+              streak={Object.keys(history).length}
+              currentDateStr={currentDateStr}
               textScale={profile.textScale}
             />
-          )}
 
-          {activeTab === 'journée' && (
-            <TaskPeriodList
-              period="journée"
-              allTasks={allActiveTasks}
-              completedTaskIds={todayProgress.completedTaskIds}
-              onToggleTask={handleToggleTask}
-              onAddTodayAction={handleAddTodayAction}
-              onPlanFutureAction={handlePlanFutureAction}
-              onDeleteTodayAction={handleDeleteTodayAction}
-              todayActions={todayProgress.actions || []}
-              onToggleTodayAction={handleToggleTodayAction}
-              completedTodayActionsIndices={(todayProgress.actions || [])
-                .map((_, idx) => idx)
-                .filter(idx => todayProgress.completedTaskIds.includes(`custom_action_${idx}`))}
-              textScale={profile.textScale}
-            />
-          )}
+            {/* TABS CONTAINER (MAIN VIEWPORTS) */}
+            <div className="flex-1 overflow-hidden flex flex-col bg-gray-50/50">
+              {activeTab === 'matin' && (
+                <TaskPeriodList
+                  key="task-period-list-matin"
+                  period="matin"
+                  allTasks={allActiveTasks}
+                  completedTaskIds={todayProgress.completedTaskIds}
+                  onToggleTask={handleToggleTask}
+                  onAddTodayAction={handleAddTodayAction}
+                  onPlanFutureAction={handlePlanFutureAction}
+                  onDeleteTodayAction={handleDeleteTodayAction}
+                  todayActions={todayProgress.actions || []}
+                  onToggleTodayAction={handleToggleTodayAction}
+                  completedTodayActionsIndices={(todayProgress.actions || [])
+                    .map((_, idx) => idx)
+                    .filter(idx => todayProgress.completedTaskIds.includes(`custom_action_${idx}`))}
+                  textScale={profile.textScale}
+                />
+              )}
 
-          {activeTab === 'soir' && (
-            <TaskPeriodList
-              period="soir"
-              allTasks={allActiveTasks}
-              completedTaskIds={todayProgress.completedTaskIds}
-              onToggleTask={handleToggleTask}
-              onAddTodayAction={handleAddTodayAction}
-              onPlanFutureAction={handlePlanFutureAction}
-              onDeleteTodayAction={handleDeleteTodayAction}
-              todayActions={todayProgress.actions || []}
-              onToggleTodayAction={handleToggleTodayAction}
-              completedTodayActionsIndices={(todayProgress.actions || [])
-                .map((_, idx) => idx)
-                .filter(idx => todayProgress.completedTaskIds.includes(`custom_action_${idx}`))}
-              textScale={profile.textScale}
-            />
-          )}
+              {activeTab === 'journée' && (
+                <TaskPeriodList
+                  key="task-period-list-journee"
+                  period="journée"
+                  allTasks={allActiveTasks}
+                  completedTaskIds={todayProgress.completedTaskIds}
+                  onToggleTask={handleToggleTask}
+                  onAddTodayAction={handleAddTodayAction}
+                  onPlanFutureAction={handlePlanFutureAction}
+                  onDeleteTodayAction={handleDeleteTodayAction}
+                  todayActions={todayProgress.actions || []}
+                  onToggleTodayAction={handleToggleTodayAction}
+                  completedTodayActionsIndices={(todayProgress.actions || [])
+                    .map((_, idx) => idx)
+                    .filter(idx => todayProgress.completedTaskIds.includes(`custom_action_${idx}`))}
+                  textScale={profile.textScale}
+                />
+              )}
 
-          {activeTab === 'progres' && (
-            <ProgressDashboard
-              state={{ profile, customTasks, history, chatMessages }}
-              allTasks={allActiveTasks}
-              textScale={profile.textScale}
-            />
-          )}
+              {activeTab === 'soir' && (
+                <TaskPeriodList
+                  key="task-period-list-soir"
+                  period="soir"
+                  allTasks={allActiveTasks}
+                  completedTaskIds={todayProgress.completedTaskIds}
+                  onToggleTask={handleToggleTask}
+                  onAddTodayAction={handleAddTodayAction}
+                  onPlanFutureAction={handlePlanFutureAction}
+                  onDeleteTodayAction={handleDeleteTodayAction}
+                  todayActions={todayProgress.actions || []}
+                  onToggleTodayAction={handleToggleTodayAction}
+                  completedTodayActionsIndices={(todayProgress.actions || [])
+                    .map((_, idx) => idx)
+                    .filter(idx => todayProgress.completedTaskIds.includes(`custom_action_${idx}`))}
+                  textScale={profile.textScale}
+                />
+              )}
 
-          {activeTab === 'calendrier' && (
-            <InteractiveCalendar
-              state={{ profile, customTasks, history, chatMessages }}
-              allTasks={allActiveTasks}
-              textScale={profile.textScale}
-            />
-          )}
+              {activeTab === 'progres' && (
+                <ProgressDashboard
+                  state={{ profile, customTasks, history, chatMessages }}
+                  allTasks={allActiveTasks}
+                  textScale={profile.textScale}
+                />
+              )}
 
-          {activeTab === 'annee' && (
-            <AnnualReport
-              state={{ profile, customTasks, history, chatMessages }}
-              textScale={profile.textScale}
-            />
-          )}
+              {activeTab === 'calendrier' && (
+                <InteractiveCalendar
+                  state={{ profile, customTasks, history, chatMessages }}
+                  allTasks={allActiveTasks}
+                  textScale={profile.textScale}
+                />
+              )}
 
-          {activeTab === 'planificateur' && (
-            <TaskPlanner
-              customTasks={customTasks}
-              onAddCustomTask={handleAddCustomTask}
-              onDeleteCustomTask={handleDeleteCustomTask}
-              onUpdateCustomTask={handleUpdateCustomTask}
-              textScale={profile.textScale}
-            />
-          )}
+              {activeTab === 'annee' && (
+                <AnnualReport
+                  state={{ profile, customTasks, history, chatMessages }}
+                  textScale={profile.textScale}
+                />
+              )}
 
-          {activeTab === 'reglages' && (
-            <SettingsPanel
-              profile={profile}
-              onUpdateProfile={handleUpdateProfile}
-              onSyncWithServer={syncWithCloudServer}
-              onExportData={handleExportData}
-              onImportData={handleImportData}
-              textScale={profile.textScale}
-            />
-          )}
-        </div>
+              {activeTab === 'planificateur' && (
+                <TaskPlanner
+                  customTasks={customTasks}
+                  onAddCustomTask={handleAddCustomTask}
+                  onDeleteCustomTask={handleDeleteCustomTask}
+                  onUpdateCustomTask={handleUpdateCustomTask}
+                  textScale={profile.textScale}
+                />
+              )}
 
-        {/* BOTTOM NAVIGATION BAR */}
-        <div className="bg-white border-t border-gray-100 px-2 py-3 flex justify-between items-center shadow-lg rounded-b-[40px] overflow-x-auto gap-1 select-none">
-          {/* Matin Tab */}
-          <button
-            onClick={() => setActiveTab('matin')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'matin' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <Sunrise size={18} />
-            <span className="text-[10px] tracking-tight">Matin</span>
-          </button>
+              {activeTab === 'reglages' && (
+                <SettingsPanel
+                  profile={profile}
+                  onUpdateProfile={handleUpdateProfile}
+                  onSyncWithServer={syncWithCloudServer}
+                  onExportData={handleExportData}
+                  onImportData={handleImportData}
+                  textScale={profile.textScale}
+                  onLogout={handleLogout}
+                />
+              )}
+            </div>
 
-          {/* Journée Tab */}
-          <button
-            onClick={() => setActiveTab('journée')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'journée' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <Sun size={18} />
-            <span className="text-[10px] tracking-tight font-medium">Jour</span>
-          </button>
+            {/* BOTTOM NAVIGATION BAR */}
+            <div className="bg-white border-t border-gray-100 px-2 py-3 flex justify-between items-center shadow-lg rounded-b-[40px] overflow-x-auto gap-1 select-none">
+              {/* Matin Tab */}
+              <button
+                onClick={() => setActiveTab('matin')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'matin' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <Sunrise size={18} />
+                <span className="text-[10px] tracking-tight">Matin</span>
+              </button>
 
-          {/* Soir Tab */}
-          <button
-            onClick={() => setActiveTab('soir')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'soir' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <Moon size={18} />
-            <span className="text-[10px] tracking-tight">Soir</span>
-          </button>
+              {/* Journée Tab */}
+              <button
+                onClick={() => setActiveTab('journée')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'journée' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <Sun size={18} />
+                <span className="text-[10px] tracking-tight font-medium">Jour</span>
+              </button>
 
-          {/* Progress Tab */}
-          <button
-            onClick={() => setActiveTab('progres')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'progres' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <BarChart2 size={18} />
-            <span className="text-[10px] tracking-tight">Progrès</span>
-          </button>
+              {/* Soir Tab */}
+              <button
+                onClick={() => setActiveTab('soir')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'soir' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <Moon size={18} />
+                <span className="text-[10px] tracking-tight">Soir</span>
+              </button>
 
-          {/* Calendrier Tab */}
-          <button
-            onClick={() => setActiveTab('calendrier')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'calendrier' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <Calendar size={18} />
-            <span className="text-[10px] tracking-tight">Calendrier</span>
-          </button>
+              {/* Progress Tab */}
+              <button
+                onClick={() => setActiveTab('progres')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'progres' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <BarChart2 size={18} />
+                <span className="text-[10px] tracking-tight">Progrès</span>
+              </button>
 
-          {/* Année Tab */}
-          <button
-            onClick={() => setActiveTab('annee')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'annee' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <Award size={18} />
-            <span className="text-[10px] tracking-tight">Année</span>
-          </button>
+              {/* Calendrier Tab */}
+              <button
+                onClick={() => setActiveTab('calendrier')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'calendrier' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <Calendar size={18} />
+                <span className="text-[10px] tracking-tight">Calendrier</span>
+              </button>
 
-          {/* Planificateur Tab */}
-          <button
-            onClick={() => setActiveTab('planificateur')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'planificateur' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <PlusCircle size={18} />
-            <span className="text-[10px] tracking-tight">Ajouter</span>
-          </button>
+              {/* Année Tab */}
+              <button
+                onClick={() => setActiveTab('annee')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'annee' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <Award size={18} />
+                <span className="text-[10px] tracking-tight">Année</span>
+              </button>
 
-          {/* Settings Tab */}
-          <button
-            onClick={() => setActiveTab('reglages')}
-            className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'reglages' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-            }`}
-          >
-            <Settings size={18} />
-            <span className="text-[10px] tracking-tight">Réglages</span>
-          </button>
-        </div>
+              {/* Planificateur Tab */}
+              <button
+                onClick={() => setActiveTab('planificateur')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'planificateur' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <PlusCircle size={18} />
+                <span className="text-[10px] tracking-tight">Ajouter</span>
+              </button>
+
+              {/* Settings Tab */}
+              <button
+                onClick={() => setActiveTab('reglages')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  activeTab === 'reglages' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
+                }`}
+              >
+                <Settings size={18} />
+                <span className="text-[10px] tracking-tight">Réglages</span>
+              </button>
+            </div>
+          </>
+        )}
 
       </div>
     </div>

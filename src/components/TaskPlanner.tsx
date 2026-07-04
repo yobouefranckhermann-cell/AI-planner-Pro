@@ -109,10 +109,12 @@ export default function TaskPlanner({
           <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono">Nom de la tâche</label>
           <input
             type="text"
+            dir="ltr"
             placeholder="Ex. Réveil matinal, Méditation, Séance de sport..."
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-500"
+            className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-500 text-left"
+            style={{ direction: 'ltr', textAlign: 'left' }}
             required
           />
         </div>

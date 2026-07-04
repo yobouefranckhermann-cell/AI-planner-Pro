@@ -12,6 +12,7 @@ interface SettingsPanelProps {
   onExportData: () => void;
   onImportData: (file: File) => void;
   textScale: number;
+  onLogout?: () => void;
 }
 
 export default function SettingsPanel({
@@ -21,6 +22,7 @@ export default function SettingsPanel({
   onExportData,
   onImportData,
   textScale,
+  onLogout,
 }: SettingsPanelProps) {
   const [nameInput, setNameInput] = useState(profile.name);
   const [emailInput, setEmailInput] = useState(profile.email);
@@ -140,6 +142,15 @@ export default function SettingsPanel({
               <span>Sync Cloud</span>
             </button>
           </div>
+
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="w-full mt-1.5 py-2 px-3 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl font-bold text-[11px] transition-colors cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+            >
+              <span>Se déconnecter / Changer de compte</span>
+            </button>
+          )}
         </div>
       </div>
 
