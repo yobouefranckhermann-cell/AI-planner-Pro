@@ -16,6 +16,7 @@ export interface UserProfile {
     morning: boolean;
     evening: boolean;
   };
+  theme?: 'blanc' | 'noir' | 'orange';
 }
 
 export interface DayProgress {

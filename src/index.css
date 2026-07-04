@@ -6,3 +6,279 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   --font-serif: "Playfair Display", Georgia, Cambria, serif;
 }
+
+/* Custom variables for themes */
+.theme-blanc {
+  --bg-app: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --border-color: #cbd5e1;
+  --accent-color: #10b981;
+  --accent-hover: #059669;
+  --accent-light: rgba(16, 185, 129, 0.08);
+  --text-white-only: #0f172a;
+}
+
+.theme-noir {
+  --bg-app: #0A0B0E;
+  --bg-card: #12141C;
+  --bg-hover: #161922;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --border-color: #1e293b;
+  --accent-color: #10b981;
+  --accent-hover: #059669;
+  --accent-light: rgba(16, 185, 129, 0.1);
+  --text-white-only: #ffffff;
+}
+
+.theme-orange {
+  --bg-app: #120905;
+  --bg-card: #1c100b;
+  --bg-hover: #26160f;
+  --text-primary: #fbeee0;
+  --text-secondary: #b08968;
+  --border-color: #3d2419;
+  --accent-color: #f15a24;
+  --accent-hover: #d64a19;
+  --accent-light: rgba(241, 90, 36, 0.1);
+  --text-white-only: #ffffff;
+}
+
+/* Base body background for matching themes */
+.theme-blanc.min-h-screen {
+  background-color: #e2e8f0 !important;
+}
+.theme-noir.min-h-screen {
+  background-color: #020617 !important;
+}
+.theme-orange.min-h-screen {
+  background-color: #0b0503 !important;
+}
+
+/* --- COMPREHENSIVE OVERRIDES FOR WHITE THEME (THEME-BLANC) --- */
+.theme-blanc {
+  color: #0f172a !important;
+}
+
+/* Force dark text on typically white/light texts */
+.theme-blanc .text-white,
+.theme-blanc .text-slate-50,
+.theme-blanc .text-slate-100,
+.theme-blanc .text-slate-200,
+.theme-blanc .text-slate-300,
+.theme-blanc .text-slate-350,
+.theme-blanc .text-gray-100,
+.theme-blanc .text-gray-200,
+.theme-blanc .text-gray-300,
+.theme-blanc .text-emerald-50,
+.theme-blanc .text-teal-100,
+.theme-blanc .text-emerald-100 {
+  color: #0f172a !important;
+}
+
+/* Force medium-dark gray on typically muted slate-400/500/gray-400 texts */
+.theme-blanc .text-slate-400,
+.theme-blanc .text-slate-500,
+.theme-blanc .text-gray-400,
+.theme-blanc .text-gray-500,
+.theme-blanc .text-slate-450 {
+  color: #475569 !important;
+}
+
+/* Force dark text for Headings inside white theme */
+.theme-blanc h1,
+.theme-blanc h2,
+.theme-blanc h3,
+.theme-blanc h4,
+.theme-blanc h5,
+.theme-blanc h6 {
+  color: #0f172a !important;
+}
+
+/* Ensure background of app and inner parts are light grey / white */
+.theme-blanc .bg-[#0A0B0E],
+.theme-blanc .bg-[#12141C],
+.theme-blanc .bg-[#161922],
+.theme-blanc .bg-slate-900,
+.theme-blanc .bg-slate-950,
+.theme-blanc .bg-slate-900\/50,
+.theme-blanc .bg-[#0d0e12],
+.theme-blanc .bg-[#0b0c10] {
+  background-color: #ffffff !important;
+}
+
+.theme-blanc .bg-gray-50\/50 {
+  background-color: #f1f5f9 !important;
+}
+
+.theme-blanc .hover\:bg-\[\#161922\]:hover,
+.theme-blanc .hover\:bg-slate-900:hover {
+  background-color: #f1f5f9 !important;
+}
+
+/* Input styles for light mode */
+.theme-blanc input,
+.theme-blanc select,
+.theme-blanc textarea {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.theme-blanc input::placeholder,
+.theme-blanc textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Specific button overrides */
+.theme-blanc .bg-emerald-500\/10 {
+  background-color: rgba(16, 185, 129, 0.08) !important;
+}
+
+.theme-blanc .text-emerald-400 {
+  color: #059669 !important;
+}
+
+/* Borders and dividers */
+.theme-blanc .border-slate-800,
+.theme-blanc .border-slate-800\/50,
+.theme-blanc .border-slate-800\/60,
+.theme-blanc .border-slate-850,
+.theme-blanc .border-slate-700,
+.theme-blanc .border-slate-900\/10 {
+  border-color: #cbd5e1 !important;
+}
+
+/* Dynamic header gradient override */
+.theme-blanc .from-\[\#161922\].to-\[\#0A0B0E\],
+.theme-blanc .bg-gradient-to-b.from-\[\#161922\].to-\[\#0A0B0E\] {
+  background-image: linear-gradient(to bottom, #f1f5f9, #ffffff) !important;
+}
+
+/* Calendar & Report background overrides */
+.theme-blanc .bg-[#12141C]\/40 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* Apply theme custom property overrides to existing hardcoded Tailwind classes */
+.theme-blanc, .theme-noir, .theme-orange {
+  background-color: var(--bg-app);
+}
+
+.theme-blanc .bg-[#0A0B0E],
+.theme-noir .bg-[#0A0B0E],
+.theme-orange .bg-[#0A0B0E] {
+  background-color: var(--bg-app) !important;
+}
+
+.theme-blanc .bg-[#12141C],
+.theme-noir .bg-[#12141C],
+.theme-orange .bg-[#12141C] {
+  background-color: var(--bg-card) !important;
+}
+
+.theme-blanc .hover\:bg-\[\#161922\]:hover,
+.theme-noir .hover\:bg-\[\#161922\]:hover,
+.theme-orange .hover\:bg-\[\#161922\]:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+.theme-blanc .bg-[#161922],
+.theme-noir .bg-[#161922],
+.theme-orange .bg-[#161922] {
+  background-color: var(--bg-hover) !important;
+}
+
+.theme-blanc .border-slate-800,
+.theme-noir .border-slate-800,
+.theme-orange .border-slate-800 {
+  border-color: var(--border-color) !important;
+}
+
+.theme-blanc .border-slate-800\/50,
+.theme-noir .border-slate-800\/50,
+.theme-orange .border-slate-800\/50 {
+  border-color: var(--border-color) !important;
+}
+
+.theme-blanc .text-slate-200,
+.theme-noir .text-slate-200,
+.theme-orange .text-slate-200 {
+  color: var(--text-primary) !important;
+}
+
+.theme-blanc .text-slate-400,
+.theme-noir .text-slate-400,
+.theme-orange .text-slate-400,
+.theme-blanc .text-slate-500,
+.theme-noir .text-slate-500,
+.theme-orange .text-slate-500 {
+  color: var(--text-secondary) !important;
+}
+
+/* Handle Bottom Navigation Bar Theme Matching */
+.theme-blanc .bg-white,
+.theme-noir .bg-white,
+.theme-orange .bg-white {
+  background-color: var(--bg-card) !important;
+}
+
+.theme-blanc .border-gray-100,
+.theme-noir .border-gray-100,
+.theme-orange .border-gray-100 {
+  border-color: var(--border-color) !important;
+}
+
+.theme-blanc .text-gray-400,
+.theme-noir .text-gray-400,
+.theme-orange .text-gray-400 {
+  color: var(--text-secondary) !important;
+}
+
+/* Handle Accent Color Override for Orange theme specifically */
+.theme-orange .bg-emerald-500 {
+  background-color: #f15a24 !important;
+}
+.theme-orange .hover\:bg-emerald-600:hover {
+  background-color: #d64a19 !important;
+}
+.theme-orange .text-emerald-400 {
+  color: #f15a24 !important;
+}
+.theme-orange .border-emerald-500 {
+  border-color: #f15a24 !important;
+}
+.theme-orange .bg-emerald-500\/10 {
+  background-color: rgba(241, 90, 36, 0.1) !important;
+}
+.theme-orange .border-emerald-500\/20,
+.theme-orange .border-emerald-500\/25 {
+  border-color: rgba(241, 90, 36, 0.25) !important;
+}
+.theme-orange .bg-gradient-to-r.from-emerald-600.to-emerald-800 {
+  background-image: linear-gradient(to right, #f15a24, #d64a19) !important;
+}
+.theme-orange .shadow-emerald-950\/20 {
+  --tw-shadow-color: rgba(241, 90, 36, 0.2);
+}
+
+/* Handle Accent Color Overrides for Black and White themes so the orange bottom-bar styles match emerald */
+.theme-noir .text-\[\#f15a24\],
+.theme-blanc .text-\[\#f15a24\] {
+  color: var(--accent-color) !important;
+}
+.theme-noir .bg-\[\#f15a24\]\/5,
+.theme-blanc .bg-\[\#f15a24\]\/5 {
+  background-color: var(--accent-light) !important;
+}
+
+.theme-orange .text-\[\#f15a24\],
+.theme-orange .bg-\[\#f15a24\]\/5 {
+  color: #f15a24 !important;
+  background-color: rgba(241, 90, 36, 0.08) !important;
+}
+

@@ -78,8 +78,26 @@ export default function App() {
     if (stored) {
       try {
         const parsed: AppState = JSON.parse(stored);
-        if (parsed.profile) setProfile(parsed.profile);
-        if (parsed.customTasks) setCustomTasks(parsed.customTasks);
+        let loadedTasks = parsed.customTasks || [];
+        
+        // Migrate defaults to customTasks so they are fully editable
+        const hasDefaults = loadedTasks.some(t => t.id === 'm1' || t.id === 's1');
+        if (!hasDefaults && loadedTasks.length === 0) {
+          loadedTasks = [...DEFAULT_TASKS];
+        } else if (!hasDefaults) {
+          loadedTasks = [...DEFAULT_TASKS, ...loadedTasks];
+        }
+        setCustomTasks(loadedTasks);
+
+        if (parsed.profile) {
+          setProfile({
+            ...INITIAL_PROFILE,
+            ...parsed.profile,
+            theme: parsed.profile.theme || 'noir' // Default to noir
+          });
+        } else {
+          setProfile({ ...INITIAL_PROFILE, theme: 'noir' });
+        }
         
         // Merge stored history with the default seeded history
         if (parsed.history) {
@@ -95,11 +113,13 @@ export default function App() {
     } else {
       // First run: save standard seeds
       const defaultState: AppState = {
-        profile: INITIAL_PROFILE,
-        customTasks: [],
+        profile: { ...INITIAL_PROFILE, theme: 'noir' },
+        customTasks: [...DEFAULT_TASKS],
         history: INITIAL_HISTORY,
         chatMessages: [],
       };
+      setCustomTasks([...DEFAULT_TASKS]);
+      setProfile({ ...INITIAL_PROFILE, theme: 'noir' });
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(defaultState));
     }
   }, []);
@@ -241,6 +261,47 @@ export default function App() {
     saveStateToLocalStorage(profile, customTasks, updatedHistory);
   };
 
+  const handleDeleteTodayAction = (index: number) => {
+    const todayStr = getTodayDateString();
+    const todayProgress = history[todayStr] || { completedTaskIds: [], actions: [] };
+
+    // Remove the action from the list
+    const updatedActions = (todayProgress.actions || []).filter((_, idx) => idx !== index);
+
+    // Also adjust indices in completedTaskIds
+    const completedActionId = `custom_action_${index}`;
+    const updatedCompletedIds = todayProgress.completedTaskIds
+      .filter(id => id !== completedActionId)
+      .map(id => {
+        if (id.startsWith('custom_action_')) {
+          const idx = parseInt(id.replace('custom_action_', ''), 10);
+          if (idx > index) {
+            return `custom_action_${idx - 1}`;
+          }
+        }
+        return id;
+      });
+
+    const updatedHistory = {
+      ...history,
+      [todayStr]: {
+        ...todayProgress,
+        date: todayStr,
+        actions: updatedActions,
+        completedTaskIds: updatedCompletedIds,
+      }
+    };
+
+    setHistory(updatedHistory);
+    saveStateToLocalStorage(profile, customTasks, updatedHistory);
+  };
+
+  const handleUpdateCustomTask = (updatedTask: Task) => {
+    const updatedCustom = customTasks.map(t => t.id === updatedTask.id ? updatedTask : t);
+    setCustomTasks(updatedCustom);
+    saveStateToLocalStorage(profile, updatedCustom, history);
+  };
+
   const handlePlanFutureAction = (actionName: string, dateStr: string) => {
     // Adds a planned task directly into the specific history date
     const targetProgress = history[dateStr] || { completedTaskIds: [], actions: [] };
@@ -315,8 +376,10 @@ export default function App() {
     reader.readAsText(file);
   };
 
-  // Assemble all active tasks (predefined defaults + user custom ones)
-  const allActiveTasks = [...DEFAULT_TASKS, ...customTasks];
+  // Assemble all active tasks. If they are already migrated, just use customTasks.
+  const allActiveTasks = customTasks.some(t => t.id === 'm1' || t.id === 's1')
+    ? customTasks
+    : [...DEFAULT_TASKS, ...customTasks];
 
   // Calculate stats for today
   const todayStr = getTodayDateString();
@@ -335,11 +398,11 @@ export default function App() {
 
   return (
     <div 
-      className="w-full min-h-screen bg-slate-950 flex justify-center items-center py-0 sm:py-8 font-sans transition-all selection:bg-[#f15a24] selection:text-white"
+      className={`w-full min-h-screen bg-slate-950 flex justify-center items-center py-0 sm:py-8 font-sans transition-all selection:bg-[#f15a24] selection:text-white theme-${profile.theme || 'noir'}`}
       style={{ fontSize: `${profile.textScale}rem` }}
     >
       {/* Phone container */}
-      <div className="w-full sm:max-w-md h-screen sm:h-[850px] bg-white flex flex-col relative sm:rounded-[40px] sm:shadow-2xl overflow-hidden border-4 border-slate-900/10">
+      <div className={`w-full sm:max-w-md h-screen sm:h-[850px] bg-white flex flex-col relative sm:rounded-[40px] sm:shadow-2xl overflow-hidden border-4 border-slate-900/10 theme-${profile.theme || 'noir'}`}>
         
         {/* Dynamic header with Digital Ticking clock, streak and percentage */}
         <AIHeader
@@ -371,6 +434,7 @@ export default function App() {
               onToggleTask={handleToggleTask}
               onAddTodayAction={handleAddTodayAction}
               onPlanFutureAction={handlePlanFutureAction}
+              onDeleteTodayAction={handleDeleteTodayAction}
               todayActions={todayProgress.actions || []}
               onToggleTodayAction={handleToggleTodayAction}
               completedTodayActionsIndices={(todayProgress.actions || [])
@@ -388,6 +452,7 @@ export default function App() {
               onToggleTask={handleToggleTask}
               onAddTodayAction={handleAddTodayAction}
               onPlanFutureAction={handlePlanFutureAction}
+              onDeleteTodayAction={handleDeleteTodayAction}
               todayActions={todayProgress.actions || []}
               onToggleTodayAction={handleToggleTodayAction}
               completedTodayActionsIndices={(todayProgress.actions || [])
@@ -405,6 +470,7 @@ export default function App() {
               onToggleTask={handleToggleTask}
               onAddTodayAction={handleAddTodayAction}
               onPlanFutureAction={handlePlanFutureAction}
+              onDeleteTodayAction={handleDeleteTodayAction}
               todayActions={todayProgress.actions || []}
               onToggleTodayAction={handleToggleTodayAction}
               completedTodayActionsIndices={(todayProgress.actions || [])
@@ -442,6 +508,7 @@ export default function App() {
               customTasks={customTasks}
               onAddCustomTask={handleAddCustomTask}
               onDeleteCustomTask={handleDeleteCustomTask}
+              onUpdateCustomTask={handleUpdateCustomTask}
               textScale={profile.textScale}
             />
           )}

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Task, DayProgress } from '../types';
-import { Plus, Calendar, Check, Circle, AlertCircle, Sparkles } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Task } from '../types';
+import { Plus, Calendar, Check, Clock, Trash2, Sparkles } from 'lucide-react';
+import { getTodayDateString } from '../utils/dateUtils';
 
 interface TaskPeriodListProps {
   period: 'matin' | 'journée' | 'soir';
@@ -10,6 +11,7 @@ interface TaskPeriodListProps {
   // Day-period specific actions
   onAddTodayAction: (name: string) => void;
   onPlanFutureAction: (name: string, dateStr: string) => void;
+  onDeleteTodayAction: (index: number) => void; // Added delete action prop
   todayActions: string[];
   onToggleTodayAction: (index: number) => void;
   completedTodayActionsIndices: number[];
@@ -23,33 +25,45 @@ export default function TaskPeriodList({
   onToggleTask,
   onAddTodayAction,
   onPlanFutureAction,
+  onDeleteTodayAction,
   todayActions,
   onToggleTodayAction,
   completedTodayActionsIndices,
   textScale,
 }: TaskPeriodListProps) {
-  const [newAction, setNewAction] = useState('');
-  const [futureActionName, setFutureActionName] = useState('');
-  const [futureActionDate, setFutureActionDate] = useState('');
-  const [showFuturePlanner, setShowFuturePlanner] = useState(false);
+  const actionInputRef = useRef<HTMLInputElement>(null);
+  const [actionDate, setActionDate] = useState(getTodayDateString());
+  const [actionTime, setActionTime] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
   const filteredTasks = allTasks.filter((t) => t.period === period);
 
   const handleAddAction = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAction.trim()) return;
-    onAddTodayAction(newAction.trim());
-    setNewAction('');
-  };
+    const actionVal = actionInputRef.current?.value || '';
+    if (!actionVal.trim()) return;
 
-  const handlePlanFuture = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!futureActionName.trim() || !futureActionDate) return;
-    onPlanFutureAction(futureActionName.trim(), futureActionDate);
-    setSuccessMsg(`Tâche planifiée pour le ${new Date(futureActionDate).toLocaleDateString('fr-FR')} !`);
-    setFutureActionName('');
-    setFutureActionDate('');
+    const formattedName = actionTime ? `${actionVal.trim()} [${actionTime}]` : actionVal.trim();
+    const todayStr = getTodayDateString();
+
+    if (actionDate === todayStr) {
+      onAddTodayAction(formattedName);
+      setSuccessMsg("Ajouté aux actions d'aujourd'hui !");
+    } else {
+      onPlanFutureAction(formattedName, actionDate);
+      const formattedFrDate = new Date(actionDate).toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      setSuccessMsg(`Planifié pour le ${formattedFrDate} !`);
+    }
+
+    if (actionInputRef.current) {
+      actionInputRef.current.value = '';
+    }
+    setActionTime('');
+    setActionDate(getTodayDateString());
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
@@ -170,39 +184,74 @@ export default function TaskPeriodList({
           <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-4 text-white shadow-md">
             <div className="flex items-center gap-2">
               <Sparkles size={16} className="text-emerald-100" />
-              <h3 className="font-bold text-sm tracking-tight text-white font-serif">Planificateur en Journée</h3>
+              <h3 className="font-bold text-sm tracking-tight text-white font-serif">Planificateur d'Action</h3>
             </div>
             <p className="text-[10px] text-emerald-100/95 mt-1 leading-relaxed">
-              Planifie tes actions du jour ou projette des tâches dans le futur pour qu'elles apparaissent automatiquement sur ton calendrier !
+              Saisis une action en français ou en anglais. Tu peux choisir aujourd'hui (pour qu'elle s'affiche ci-dessous) ou une date ultérieure avec heure !
             </p>
           </div>
 
-          {/* Quick Add for Today */}
-          <form onSubmit={handleAddAction} className="flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1 font-mono">
-              🎯 Action d'aujourd'hui
-            </label>
-            <div className="flex gap-2">
+          {/* Unified Action Quick Add (Replaces separate planificateur pour le futur) */}
+          <form onSubmit={handleAddAction} className="bg-[#12141C] border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                🎯 Saisir une Action / Task (Français ou Anglais)
+              </label>
               <input
+                ref={actionInputRef}
                 type="text"
-                placeholder="Ex. Réunion de travail, Préparer dossier..."
-                value={newAction}
-                onChange={(e) => setNewAction(e.target.value)}
-                className="flex-1 bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-500"
+                placeholder="Ex. Réunion travail, Gym session, Learn React..."
+                className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-500"
+                required
               />
-              <button
-                type="submit"
-                className="bg-emerald-500 text-white p-2.5 rounded-xl hover:bg-emerald-600 shadow-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-              >
-                <Plus size={16} className="text-white" />
-              </button>
             </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  📅 Date
+                </label>
+                <input
+                  type="date"
+                  value={actionDate}
+                  onChange={(e) => setActionDate(e.target.value)}
+                  className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 cursor-pointer"
+                  required
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+                  ⏰ Heure (Optionnel)
+                </label>
+                <input
+                  type="time"
+                  value={actionTime}
+                  onChange={(e) => setActionTime(e.target.value)}
+                  className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {successMsg && (
+              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-xl text-[10px] font-medium flex items-center gap-1">
+                <Check size={12} />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+            >
+              <Plus size={14} />
+              <span>Ajouter & Planifier l'Action</span>
+            </button>
           </form>
 
           {/* Today's Custom Actions List */}
           <div className="flex flex-col gap-2">
             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-1 font-mono">
-              📋 Actions du Jour
+              📋 Actions du Jour (Français / Anglais)
             </h4>
             {todayActions.length === 0 ? (
               <div className="bg-[#12141C] border border-dashed border-slate-800 rounded-2xl p-5 text-center text-xs text-slate-500">
@@ -213,88 +262,47 @@ export default function TaskPeriodList({
                 {todayActions.map((action, idx) => {
                   const isDone = completedTodayActionsIndices.includes(idx);
                   return (
-                    <button
+                    <div
                       key={idx}
-                      onClick={() => onToggleTodayAction(idx)}
-                      className={`w-full flex items-center gap-3 p-3.5 bg-[#12141C] rounded-xl border text-left transition-all cursor-pointer ${
+                      className={`w-full flex items-center justify-between p-3.5 bg-[#12141C] rounded-xl border transition-all ${
                         isDone
                           ? 'border-emerald-500/20 bg-[#10b981]/5 shadow-2xs'
                           : 'border-slate-800 hover:border-slate-700 shadow-2xs'
                       }`}
                     >
-                      <div
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isDone ? 'bg-emerald-500 border-emerald-500' : 'border-slate-700'
-                        }`}
+                      <button
+                        onClick={() => onToggleTodayAction(idx)}
+                        className="flex items-center gap-3 text-left transition-all cursor-pointer flex-1"
                       >
-                        {isDone && <Check size={12} className="text-white font-bold" />}
-                      </div>
-                      <span
-                        className={`text-xs font-semibold text-slate-200 ${
-                          isDone ? 'line-through text-slate-500' : ''
-                        }`}
+                        <div
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isDone ? 'bg-emerald-500 border-emerald-500' : 'border-slate-700 bg-[#0A0B0E]'
+                          }`}
+                        >
+                          {isDone && <Check size={12} className="text-white font-bold" />}
+                        </div>
+                        <span
+                          className={`text-xs font-semibold text-slate-200 break-all pr-2 ${
+                            isDone ? 'line-through text-slate-500' : ''
+                          }`}
+                        >
+                          {action}
+                        </span>
+                      </button>
+
+                      <button
+                        onClick={() => onDeleteTodayAction(idx)}
+                        className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors cursor-pointer"
+                        title="Supprimer l'action"
                       >
-                        {action}
-                      </span>
-                    </button>
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
             )}
           </div>
-
-          {/* Toggle for Future Planner */}
-          <button
-            onClick={() => setShowFuturePlanner(!showFuturePlanner)}
-            className="w-full py-2.5 bg-[#12141C] hover:bg-[#161922] rounded-xl text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-800"
-          >
-            <Calendar size={14} />
-            <span>{showFuturePlanner ? 'Masquer le planificateur futur' : 'Planifier pour le futur'}</span>
-          </button>
-
-          {/* Future Planner Form */}
-          {showFuturePlanner && (
-            <form onSubmit={handlePlanFuture} className="bg-[#12141C] border border-slate-800 rounded-2xl p-4 flex flex-col gap-3 animate-in fade-in duration-200">
-              <h4 className="text-xs font-bold text-slate-200 font-serif">Planifier une Tâche Future</h4>
-              
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Description de l'action</label>
-                <input
-                  type="text"
-                  placeholder="Ex. Rdv dentiste, Bilan mensuel..."
-                  value={futureActionName}
-                  onChange={(e) => setFutureActionName(e.target.value)}
-                  className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200"
-                  required
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-mono">Date d'exécution</label>
-                <input
-                  type="date"
-                  value={futureActionDate}
-                  onChange={(e) => setFutureActionDate(e.target.value)}
-                  className="bg-[#0A0B0E] border border-slate-800 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200"
-                  required
-                />
-              </div>
-
-              {successMsg && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-2 rounded-xl text-[11px] font-medium flex items-center gap-1.5">
-                  <Check size={12} />
-                  <span>{successMsg}</span>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-2 rounded-xl font-bold text-xs transition-colors cursor-pointer shadow-sm mt-1"
-              >
-                Sauvegarder dans le Calendrier
-              </button>
-            </form>
-          )}
         </div>
       )}
     </div>

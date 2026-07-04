@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UserProfile, AppState } from '../types';
 import { 
   Settings, User, Bell, Sliders, Save, FileText, Download, Upload, 
-  Smartphone, Shield, Check, RefreshCw, AlertTriangle, Eye 
+  Smartphone, Shield, Check, RefreshCw, AlertTriangle, Eye, Palette 
 } from 'lucide-react';
 
 interface SettingsPanelProps {
@@ -168,6 +168,46 @@ export default function SettingsPanel({
         <p className="text-[9px] text-slate-500 text-center leading-relaxed font-medium">
           Faites glisser pour ajuster instantanément la taille de la police et la densité d'affichage de toute l'interface.
         </p>
+      </div>
+
+      {/* 2.5. CHOIX DU THÈME */}
+      <div className="bg-[#12141C] border border-slate-800 rounded-3xl p-5 shadow-xs flex flex-col gap-3">
+        <div className="flex items-center gap-2 border-b border-slate-800/60 pb-2.5">
+          <Palette size={16} className="text-emerald-400" />
+          <h3 className="font-bold text-xs text-slate-200 uppercase tracking-widest font-mono">Thème de l'Application</h3>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 mt-1">
+          {[
+            { id: 'blanc', name: 'Blanc', desc: 'Thème clair épuré', colorBg: 'bg-white border-slate-200 text-slate-900', colorDot: 'bg-slate-400' },
+            { id: 'noir', name: 'Noir', desc: 'Saphir nocturne', colorBg: 'bg-[#0A0B0E] border-slate-800 text-slate-200', colorDot: 'bg-emerald-500' },
+            { id: 'orange', name: 'Orange', desc: 'Énergie vibrante', colorBg: 'bg-[#1c100b] border-amber-950 text-amber-100', colorDot: 'bg-[#f15a24]' },
+          ].map((themeOpt) => (
+            <button
+              key={themeOpt.id}
+              type="button"
+              onClick={() => {
+                onUpdateProfile({
+                  ...profile,
+                  theme: themeOpt.id as 'blanc' | 'noir' | 'orange'
+                });
+              }}
+              className={`p-2 rounded-xl text-xs font-bold capitalize border transition-all cursor-pointer flex flex-col items-center gap-1 ${
+                (profile.theme || 'noir') === themeOpt.id
+                  ? 'ring-2 ring-emerald-500 border-transparent bg-emerald-500/5'
+                  : 'hover:bg-[#161922]/50'
+              } ${themeOpt.colorBg}`}
+            >
+              <div className="flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${themeOpt.colorDot}`} />
+                <span className="text-[10px]">{themeOpt.name}</span>
+              </div>
+              <span className="text-[7.5px] opacity-60 font-medium font-mono block text-center leading-tight">
+                {themeOpt.desc}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 3. NOTIFICATIONS SECTION */}
