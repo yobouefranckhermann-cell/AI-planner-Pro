@@ -24,7 +24,9 @@ const INITIAL_PROFILE: UserProfile = {
     tasks: true,
     morning: true,
     evening: false,
-  }
+  },
+  theme: 'noir',
+  language: 'fr',
 };
 
 const INITIAL_HISTORY: { [date: string]: DayProgress } = {
@@ -98,7 +100,8 @@ export default function App() {
           const profileWithTheme = {
             ...INITIAL_PROFILE,
             ...parsed.profile,
-            theme: parsed.profile.theme || 'noir' // Default to noir
+            theme: parsed.profile.theme || 'noir', // Default to noir
+            language: parsed.profile.language || 'fr' // Default to fr
           };
           setProfile(profileWithTheme);
 
@@ -113,7 +116,7 @@ export default function App() {
             setLoginEmail('');
           }
         } else {
-          setProfile({ ...INITIAL_PROFILE, theme: 'noir' });
+          setProfile({ ...INITIAL_PROFILE, theme: 'noir', language: 'fr' });
           setLoginName('');
           setLoginEmail('');
         }
