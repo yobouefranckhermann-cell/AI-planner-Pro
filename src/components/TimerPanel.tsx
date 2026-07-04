@@ -13,6 +13,21 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
   const [minutes, setMinutes] = useState(37); // Set default to 37 minutes like screenshot!
   const [seconds, setSeconds] = useState(0);
 
+  // Keyboard manual typing mode vs scrolling wheel mode
+  const [isManualInput, setIsManualInput] = useState(false);
+
+  // User custom voice message state
+  const [voiceMessage, setVoiceMessage] = useState<string>('');
+
+  useEffect(() => {
+    if (!voiceMessage) {
+      const defaultMsg = profile?.name 
+        ? `C'est fini ${profile.name.trim()}, passe à autre chose.` 
+        : "C'est fini, passe à autre chose.";
+      setVoiceMessage(defaultMsg);
+    }
+  }, [profile?.name]);
+
   // Active countdown state
   const [timeLeft, setTimeLeft] = useState<number | null>(null); // in seconds
   const [isRunning, setIsRunning] = useState(false);
@@ -81,15 +96,13 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
     }
   };
 
-  // Text-To-Speech generator: speaks stoic reminder mentioning the user's name
-  const playVoiceSpeech = (name: string, language: string = 'fr') => {
+  // Text-To-Speech generator: speaks stoic reminder using custom text
+  const playVoiceSpeech = (text: string, language: string = 'fr') => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel(); // clear previous speech
       
       const isEn = language === 'en';
-      const textToSpeak = isEn 
-        ? "Time's up! Move on to something else."
-        : (name ? `C'est fini ${name.trim()}, passe à autre chose.` : "C'est fini, passe à autre chose.");
+      const textToSpeak = text || (isEn ? "Time's up! Move on to something else." : "C'est fini, passe à autre chose.");
         
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.lang = isEn ? 'en-US' : 'fr-FR';
@@ -147,7 +160,7 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
           setIsTesting(false);
         }, 5000);
       } else {
-        playVoiceSpeech(profile?.name || '', profile?.language || 'fr');
+        playVoiceSpeech(voiceMessage, profile?.language || 'fr');
         setTimeout(() => {
           setIsTesting(false);
         }, 4000);
@@ -185,7 +198,7 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
 
       // Speak voice after a tiny delay
       setTimeout(() => {
-        playVoiceSpeech(profile?.name || '', profile?.language || 'fr');
+        playVoiceSpeech(voiceMessage, profile?.language || 'fr');
       }, 400);
 
       // Automatically turn off ringing after 5 seconds for voice
@@ -359,65 +372,136 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
         </p>
       </div>
 
+      {/* Selector: Spinner vs Manual input */}
+      {timeLeft === null && (
+        <div className="flex bg-[#12141C]/80 border border-slate-800/80 p-0.5 rounded-xl mb-1 text-xs font-mono">
+          <button
+            onClick={() => setIsManualInput(false)}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${!isManualInput ? 'bg-slate-800 text-slate-100 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            🎛️ Molette
+          </button>
+          <button
+            onClick={() => setIsManualInput(true)}
+            className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${isManualInput ? 'bg-slate-800 text-slate-100 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            ⌨️ Clavier
+          </button>
+        </div>
+      )}
+
       {/* 2. Interactive Scrolling Wheel Display */}
       <div className="flex flex-col items-center justify-center w-full my-4 min-h-[160px]">
         {timeLeft === null ? (
-          /* PICKER MODE (WHEEL FEEL AS SHOWN IN SCREENSHOT) */
-          <div className="flex items-center justify-center gap-8 font-sans select-none">
-            {/* Hours Column */}
-            <div className="flex flex-col items-center w-16">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-3">Hours</span>
-              <button onClick={() => adjustValue('hours', 'up')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▲</button>
-              <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
-                {pad(getPrevValue(hours, 99))}
-              </span>
-              <span className="text-4xl font-extrabold text-slate-200 my-1 font-mono scale-110 transition-transform theme-timer-active-digit">
-                {pad(hours)}
-              </span>
-              <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
-                {pad(getNextValue(hours, 99))}
-              </span>
-              <button onClick={() => adjustValue('hours', 'down')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▼</button>
+          isManualInput ? (
+            /* MANUAL KEYBOARD INPUT MODE */
+            <div className="flex items-center justify-center gap-4 bg-[#12141C]/30 border border-slate-800/40 rounded-2xl p-4 font-mono select-none">
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Hours</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={hours || ''}
+                  placeholder="00"
+                  onChange={(e) => {
+                    const val = Math.min(99, Math.max(0, parseInt(e.target.value) || 0));
+                    setHours(val);
+                  }}
+                  className="w-16 bg-slate-900 border border-slate-800 rounded-xl text-center text-3xl font-extrabold py-2.5 text-slate-200 font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+              <span className="text-2xl font-black text-slate-700 pt-5">:</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Minutes</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={minutes || ''}
+                  placeholder="00"
+                  onChange={(e) => {
+                    const val = Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
+                    setMinutes(val);
+                  }}
+                  className="w-16 bg-slate-900 border border-slate-800 rounded-xl text-center text-3xl font-extrabold py-2.5 text-slate-200 font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+              <span className="text-2xl font-black text-slate-700 pt-5">:</span>
+              <div className="flex flex-col items-center">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Seconds</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={seconds || ''}
+                  placeholder="00"
+                  onChange={(e) => {
+                    const val = Math.min(59, Math.max(0, parseInt(e.target.value) || 0));
+                    setSeconds(val);
+                  }}
+                  className="w-16 bg-slate-900 border border-slate-800 rounded-xl text-center text-3xl font-extrabold py-2.5 text-slate-200 font-mono focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
             </div>
+          ) : (
+            /* PICKER MODE (WHEEL FEEL AS SHOWN IN SCREENSHOT) */
+            <div className="flex items-center justify-center gap-8 font-sans select-none">
+              {/* Hours Column */}
+              <div className="flex flex-col items-center w-16">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-3">Hours</span>
+                <button onClick={() => adjustValue('hours', 'up')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▲</button>
+                <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
+                  {pad(getPrevValue(hours, 99))}
+                </span>
+                <span className="text-4xl font-extrabold text-slate-200 my-1 font-mono scale-110 transition-transform theme-timer-active-digit">
+                  {pad(hours)}
+                </span>
+                <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
+                  {pad(getNextValue(hours, 99))}
+                </span>
+                <button onClick={() => adjustValue('hours', 'down')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▼</button>
+              </div>
 
-            {/* Separator */}
-            <span className="text-3xl font-black text-slate-700 pt-8 font-mono">:</span>
+              {/* Separator */}
+              <span className="text-3xl font-black text-slate-700 pt-8 font-mono">:</span>
 
-            {/* Minutes Column */}
-            <div className="flex flex-col items-center w-16">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-3">Minutes</span>
-              <button onClick={() => adjustValue('minutes', 'up')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▲</button>
-              <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
-                {pad(getPrevValue(minutes, 59))}
-              </span>
-              <span className="text-4xl font-extrabold text-slate-200 my-1 font-mono scale-110 transition-transform theme-timer-active-digit">
-                {pad(minutes)}
-              </span>
-              <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
-                {pad(getNextValue(minutes, 59))}
-              </span>
-              <button onClick={() => adjustValue('minutes', 'down')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▼</button>
+              {/* Minutes Column */}
+              <div className="flex flex-col items-center w-16">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-3">Minutes</span>
+                <button onClick={() => adjustValue('minutes', 'up')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▲</button>
+                <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
+                  {pad(getPrevValue(minutes, 59))}
+                </span>
+                <span className="text-4xl font-extrabold text-slate-200 my-1 font-mono scale-110 transition-transform theme-timer-active-digit">
+                  {pad(minutes)}
+                </span>
+                <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
+                  {pad(getNextValue(minutes, 59))}
+                </span>
+                <button onClick={() => adjustValue('minutes', 'down')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▼</button>
+              </div>
+
+              {/* Separator */}
+              <span className="text-3xl font-black text-slate-700 pt-8 font-mono">:</span>
+
+              {/* Seconds Column */}
+              <div className="flex flex-col items-center w-16">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-3">Seconds</span>
+                <button onClick={() => adjustValue('seconds', 'up')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▲</button>
+                <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
+                  {pad(getPrevValue(seconds, 59))}
+                </span>
+                <span className="text-4xl font-extrabold text-slate-200 my-1 font-mono scale-110 transition-transform theme-timer-active-digit">
+                  {pad(seconds)}
+                </span>
+                <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
+                  {pad(getNextValue(seconds, 59))}
+                </span>
+                <button onClick={() => adjustValue('seconds', 'down')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▼</button>
+              </div>
             </div>
-
-            {/* Separator */}
-            <span className="text-3xl font-black text-slate-700 pt-8 font-mono">:</span>
-
-            {/* Seconds Column */}
-            <div className="flex flex-col items-center w-16">
-              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-3">Seconds</span>
-              <button onClick={() => adjustValue('seconds', 'up')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▲</button>
-              <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
-                {pad(getPrevValue(seconds, 59))}
-              </span>
-              <span className="text-4xl font-extrabold text-slate-200 my-1 font-mono scale-110 transition-transform theme-timer-active-digit">
-                {pad(seconds)}
-              </span>
-              <span className="text-2xl font-semibold text-slate-600 opacity-20 font-mono">
-                {pad(getNextValue(seconds, 59))}
-              </span>
-              <button onClick={() => adjustValue('seconds', 'down')} className="text-slate-600 hover:text-emerald-400 font-bold py-1 text-sm transition-colors">▼</button>
-            </div>
-          </div>
+          )
         ) : (
           /* COUNTDOWN / RINGING ACTIVE VIEW */
           <div className="flex flex-col items-center justify-center font-mono w-full px-4">
@@ -547,6 +631,22 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
             <span>Voix Stoïque 🗣️</span>
           </button>
         </div>
+
+        {/* Custom Speech Text Input when voice alert is selected */}
+        {alertType === 'voice' && (
+          <div className="w-full mt-1.5 flex flex-col gap-1 text-left">
+            <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono">
+              Message vocal personnalisé :
+            </label>
+            <input
+              type="text"
+              value={voiceMessage}
+              onChange={(e) => setVoiceMessage(e.target.value)}
+              placeholder="Ex: C'est fini, passe à autre chose."
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-sans focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+            />
+          </div>
+        )}
       </div>
 
       {/* 4. Controls & Start Button */}
