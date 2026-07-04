@@ -1,0 +1,6 @@
+{
+  "name": "AI Planner Pro",
+  "description": "Un planificateur quotidien intelligent et personnalisé pour Franck, combinant suivi de la discipline, calendrier mobile, statistiques détaillées de progrès et un assistant IA motivateur basé sur vos actions quotidiennes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
