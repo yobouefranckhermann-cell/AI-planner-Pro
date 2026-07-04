@@ -161,16 +161,24 @@ De quoi as-tu besoin aujourd'hui ? Demande-moi des encouragements, une citation 
       {/* Banner below navigation tab */}
       <button
         onClick={() => setIsChatOpen(true)}
-        className="w-full bg-[#12141C] text-slate-200 px-4 py-2.5 flex items-center gap-2.5 text-left border-b border-slate-800/60 cursor-pointer hover:bg-[#161922] transition-all"
+        className="w-full bg-[#12141C] text-slate-200 px-4 py-2.5 flex items-center gap-2.5 text-left border-b border-slate-800/60 cursor-pointer hover:bg-[#161922] transition-all theme-coach-banner"
         style={{ fontSize: `${textScale * 0.75}rem` }}
       >
-        <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center bg-emerald-500 text-white rounded-lg shadow-sm">
-          <Bot size={14} className="text-white" />
+        <div className="w-6 h-6 flex-shrink-0 flex items-center justify-center bg-emerald-500 text-white rounded-lg shadow-sm theme-coach-avatar">
+          <span className="text-[12px]">🤖</span>
         </div>
-        <div className="flex-1 font-medium leading-tight text-slate-300">
-          {bannerMessage}
+        <div className="flex-1 font-medium leading-tight text-slate-300 theme-coach-text">
+          {bannerMessage.includes(userName) && userName ? (
+            <>
+              {bannerMessage.split(userName)[0]}
+              <span className="text-emerald-400 font-bold user-name-highlight">{userName}</span>
+              {bannerMessage.split(userName)[1]}
+            </>
+          ) : (
+            bannerMessage
+          )}
         </div>
-        <div className="text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-400 font-bold tracking-wider uppercase border border-emerald-500/20 animate-pulse">
+        <div className="text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded text-emerald-400 font-bold tracking-wider uppercase border border-emerald-500/20 animate-pulse theme-coach-badge">
           IA Coach
         </div>
       </button>

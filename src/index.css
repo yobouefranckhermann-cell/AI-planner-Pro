@@ -9,16 +9,16 @@
 
 /* Custom variables for themes */
 .theme-blanc {
-  --bg-app: #f8fafc;
+  --bg-app: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --border-color: #cbd5e1;
-  --accent-color: #10b981;
-  --accent-hover: #059669;
-  --accent-light: rgba(16, 185, 129, 0.08);
-  --text-white-only: #0f172a;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+  --accent-color: #f15a24;
+  --accent-hover: #d64a19;
+  --accent-light: rgba(241, 90, 36, 0.06);
+  --text-white-only: #1e293b;
 }
 
 .theme-noir {
@@ -48,8 +48,10 @@
 }
 
 /* Base body background for matching themes */
-.theme-blanc.min-h-screen {
-  background-color: #e2e8f0 !important;
+.theme-blanc,
+.theme-blanc.min-h-screen,
+.theme-blanc.bg-slate-950 {
+  background-color: #ffffff !important;
 }
 .theme-noir.min-h-screen {
   background-color: #020617 !important;
@@ -99,19 +101,28 @@
 }
 
 /* Ensure background of app and inner parts are light grey / white */
-.theme-blanc .bg-[#0A0B0E],
-.theme-blanc .bg-[#12141C],
-.theme-blanc .bg-[#161922],
+.theme-blanc .bg-\[\#0A0B0E\],
+.theme-blanc [class*="bg-[#0A0B0E]"],
+.theme-blanc .bg-\[\#12141C\],
+.theme-blanc [class*="bg-[#12141C]"],
+.theme-blanc .bg-\[\#161922\],
+.theme-blanc [class*="bg-[#161922]"],
 .theme-blanc .bg-slate-900,
 .theme-blanc .bg-slate-950,
 .theme-blanc .bg-slate-900\/50,
-.theme-blanc .bg-[#0d0e12],
-.theme-blanc .bg-[#0b0c10] {
+.theme-blanc .bg-\[\#0d0e12\],
+.theme-blanc [class*="bg-[#0d0e12]"],
+.theme-blanc .bg-\[\#0b0c10\],
+.theme-blanc [class*="bg-[#0b0c10]"],
+.theme-blanc .bg-\[\#1a1c24\],
+.theme-blanc [class*="bg-[#1a1c24]"],
+.theme-blanc .bg-\[\#13151b\],
+.theme-blanc [class*="bg-[#13151b]"] {
   background-color: #ffffff !important;
 }
 
 .theme-blanc .bg-gray-50\/50 {
-  background-color: #f1f5f9 !important;
+  background-color: #ffffff !important;
 }
 
 .theme-blanc .hover\:bg-\[\#161922\]:hover,
@@ -159,7 +170,8 @@
 }
 
 /* Calendar & Report background overrides */
-.theme-blanc .bg-[#12141C]\/40 {
+.theme-blanc .bg-\[\#12141C\]\/40,
+.theme-blanc [class*="bg-[#12141C]/40"] {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
 }
@@ -169,15 +181,21 @@
   background-color: var(--bg-app);
 }
 
-.theme-blanc .bg-[#0A0B0E],
-.theme-noir .bg-[#0A0B0E],
-.theme-orange .bg-[#0A0B0E] {
+.theme-blanc .bg-\[\#0A0B0E\],
+.theme-noir .bg-\[\#0A0B0E\],
+.theme-orange .bg-\[\#0A0B0E\],
+.theme-blanc [class*="bg-[#0A0B0E]"],
+.theme-noir [class*="bg-[#0A0B0E]"],
+.theme-orange [class*="bg-[#0A0B0E]"] {
   background-color: var(--bg-app) !important;
 }
 
-.theme-blanc .bg-[#12141C],
-.theme-noir .bg-[#12141C],
-.theme-orange .bg-[#12141C] {
+.theme-blanc .bg-\[\#12141C\],
+.theme-noir .bg-\[\#12141C\],
+.theme-orange .bg-\[\#12141C\],
+.theme-blanc [class*="bg-[#12141C]"],
+.theme-noir [class*="bg-[#12141C]"],
+.theme-orange [class*="bg-[#12141C]"] {
   background-color: var(--bg-card) !important;
 }
 
@@ -187,9 +205,12 @@
   background-color: var(--bg-hover) !important;
 }
 
-.theme-blanc .bg-[#161922],
-.theme-noir .bg-[#161922],
-.theme-orange .bg-[#161922] {
+.theme-blanc .bg-\[\#161922\],
+.theme-noir .bg-\[\#161922\],
+.theme-orange .bg-\[\#161922\],
+.theme-blanc [class*="bg-[#161922]"],
+.theme-noir [class*="bg-[#161922]"],
+.theme-orange [class*="bg-[#161922]"] {
   background-color: var(--bg-hover) !important;
 }
 
@@ -280,5 +301,213 @@
 .theme-orange .bg-\[\#f15a24\]\/5 {
   color: #f15a24 !important;
   background-color: rgba(241, 90, 36, 0.08) !important;
+}
+
+/* ==========================================
+   HIGH-FIDELITY USER SCREENSHOT ALIGNMENT
+   ========================================== */
+
+/* 1. Header Styles for White Theme */
+.theme-blanc .theme-header {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  border-bottom-width: 1px !important;
+  border-bottom-color: #e2e8f0 !important;
+}
+.theme-blanc .theme-header-ai {
+  color: #1e293b !important;
+}
+.theme-blanc .theme-header-title {
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-header-date {
+  color: #64748b !important;
+}
+.theme-blanc .theme-streak-badge {
+  background-color: #fff7ed !important;
+  border-color: #ffedd5 !important;
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-streak-text {
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-clock {
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-goal-label {
+  color: #64748b !important;
+}
+.theme-blanc .theme-goal-percent {
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-goal-track {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+.theme-blanc .theme-goal-fill {
+  background-color: #f15a24 !important;
+  box-shadow: none !important;
+}
+
+/* 2. Coach Banner (Keep it dark chocolate warm brown for premium high contrast) */
+.theme-blanc .theme-coach-banner {
+  background-color: #1c100b !important; /* Deep chocolate brown */
+  border-bottom-color: #2e1b12 !important;
+}
+.theme-blanc .theme-coach-banner:hover {
+  background-color: #26160f !important;
+}
+.theme-blanc .theme-coach-text {
+  color: #fcefe3 !important;
+}
+.theme-blanc .theme-coach-text .user-name-highlight {
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-coach-avatar {
+  background-color: #f15a24 !important;
+  border-radius: 9999px !important;
+}
+.theme-blanc .theme-coach-badge {
+  display: none !important; /* Hide to match screenshot */
+}
+
+/* 3. Tab Bar Styles */
+.theme-noir .theme-tab-bar {
+  background-color: #12141C !important;
+  border-color: #1e293b !important;
+}
+.theme-orange .theme-tab-bar {
+  background-color: #1c100b !important;
+  border-color: #3d2419 !important;
+}
+.theme-blanc .theme-tab-bar {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Active tab text overrides */
+.theme-noir .theme-tab-active {
+  color: #10b981 !important; /* Emerald in dark */
+}
+.theme-noir .theme-icon-active {
+  color: #10b981 !important;
+}
+.theme-noir .theme-tab-indicator {
+  background-color: #10b981 !important;
+}
+
+.theme-orange .theme-tab-active {
+  color: #f15a24 !important; /* Orange in orange theme */
+}
+.theme-orange .theme-icon-active {
+  color: #f15a24 !important;
+}
+.theme-orange .theme-tab-indicator {
+  background-color: #f15a24 !important;
+}
+
+.theme-blanc .theme-tab-active {
+  color: #f15a24 !important; /* Orange in white theme */
+}
+.theme-blanc .theme-icon-active {
+  color: #f15a24 !important;
+}
+.theme-blanc .theme-tab-indicator {
+  background-color: #f15a24 !important;
+}
+
+/* Inactive tabs */
+.theme-noir .theme-tab-inactive {
+  color: #64748b !important;
+}
+.theme-orange .theme-tab-inactive {
+  color: #8c6a53 !important;
+}
+.theme-blanc .theme-tab-inactive {
+  color: #64748b !important;
+}
+
+/* 4. Annual Report Styles matching the screenshot */
+.theme-blanc .theme-annual-report {
+  background-color: #ffffff !important; /* Warm light gray background */
+}
+.theme-blanc .theme-annual-card {
+  background-image: none !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+.theme-blanc .theme-annual-title {
+  color: #1e293b !important;
+}
+.theme-blanc .theme-annual-icon {
+  color: #3b82f6 !important; /* Blue color for bar chart icon in screenshot */
+}
+.theme-blanc .theme-annual-line {
+  background-color: #f15a24 !important; /* Solid orange underline */
+}
+.theme-blanc .theme-annual-cell {
+  background-color: #f8fafc !important; /* Clean light gray cells */
+  border-color: #f1f5f9 !important;
+}
+.theme-blanc .theme-annual-value {
+  color: #f15a24 !important; /* Orange bold value */
+}
+.theme-blanc .theme-annual-label {
+  color: #64748b !important; /* Muted gray label below */
+}
+.theme-blanc .theme-annual-subtitle {
+  color: #64748b !important;
+}
+.theme-blanc .theme-annual-month {
+  color: #475569 !important;
+}
+.theme-blanc .theme-annual-track {
+  background-color: #f1f5f9 !important;
+}
+.theme-blanc .theme-annual-fill {
+  background-color: #f15a24 !important;
+}
+.theme-blanc .theme-annual-percent {
+  color: #f15a24 !important;
+}
+
+/* 5. Generic Accent Overrides for White Theme */
+.theme-blanc .bg-emerald-500,
+.theme-blanc .bg-emerald-600 {
+  background-color: #f15a24 !important;
+}
+.theme-blanc .hover\:bg-emerald-600:hover,
+.theme-blanc .hover\:bg-emerald-700:hover {
+  background-color: #d64a19 !important;
+}
+.theme-blanc .text-emerald-400,
+.theme-blanc .text-emerald-500,
+.theme-blanc .text-emerald-600 {
+  color: #f15a24 !important;
+}
+.theme-blanc .border-emerald-500,
+.theme-blanc .border-emerald-500\/20,
+.theme-blanc .border-emerald-500\/25,
+.theme-blanc .border-emerald-500\/30 {
+  border-color: rgba(241, 90, 36, 0.3) !important;
+}
+.theme-blanc .bg-emerald-500\/10 {
+  background-color: rgba(241, 90, 36, 0.08) !important;
+}
+.theme-blanc .bg-emerald-500\/20 {
+  background-color: rgba(241, 90, 36, 0.15) !important;
+}
+.theme-blanc .bg-\[\#10b981\]\/5 {
+  background-color: rgba(241, 90, 36, 0.05) !important;
+}
+.theme-blanc .bg-gradient-to-r.from-emerald-600.to-emerald-800 {
+  background-image: linear-gradient(to right, #f15a24, #d64a19) !important;
+}
+.theme-blanc .text-emerald-100 {
+  color: #fff5eb !important;
+}
+.theme-blanc .shadow-emerald-950\/20 {
+  --tw-shadow-color: rgba(241, 90, 36, 0.15);
 }
 

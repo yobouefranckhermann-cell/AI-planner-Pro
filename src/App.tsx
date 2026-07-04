@@ -6,11 +6,11 @@ import AICoachBanner from './components/AICoachBanner';
 import TaskPeriodList from './components/TaskPeriodList';
 import ProgressDashboard from './components/ProgressDashboard';
 import InteractiveCalendar from './components/InteractiveCalendar';
-import AnnualReport from './components/AnnualReport';
+import TimerPanel from './components/TimerPanel';
 import TaskPlanner from './components/TaskPlanner';
 import SettingsPanel from './components/SettingsPanel';
 import { 
-  Sunrise, Sun, Moon, BarChart2, Calendar, Award, PlusCircle, Settings, 
+  Sunrise, Sun, Moon, BarChart2, Calendar, Timer, PlusCircle, Settings, 
   Sparkles, CheckCircle2, User, Mail, ShieldCheck, RefreshCw, KeyRound
 } from 'lucide-react';
 
@@ -41,7 +41,7 @@ const INITIAL_HISTORY: { [date: string]: DayProgress } = {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'matin' | 'journée' | 'soir' | 'progres' | 'calendrier' | 'annee' | 'planificateur' | 'reglages'>('matin');
+  const [activeTab, setActiveTab] = useState<'matin' | 'journée' | 'soir' | 'progres' | 'calendrier' | 'timer' | 'planificateur' | 'reglages'>('matin');
   
   // App state
   const [profile, setProfile] = useState<UserProfile>(INITIAL_PROFILE);
@@ -78,6 +78,24 @@ export default function App() {
     const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // 1.5. SYNC THEME CLASS TO HTML & BODY ELEMENTS
+  useEffect(() => {
+    const themeClass = `theme-${profile.theme || 'noir'}`;
+    document.documentElement.className = themeClass;
+    document.body.className = themeClass;
+    
+    if (profile.theme === 'blanc') {
+      document.documentElement.style.backgroundColor = '#ffffff';
+      document.body.style.backgroundColor = '#ffffff';
+    } else if (profile.theme === 'orange') {
+      document.documentElement.style.backgroundColor = '#120905';
+      document.body.style.backgroundColor = '#120905';
+    } else {
+      document.documentElement.style.backgroundColor = '#0A0B0E';
+      document.body.style.backgroundColor = '#0A0B0E';
+    }
+  }, [profile.theme]);
 
   // 2. STATE PERSISTENCE (LOCAL STORAGE)
   useEffect(() => {
@@ -598,6 +616,105 @@ export default function App() {
               textScale={profile.textScale}
             />
 
+            {/* TOP TAB BAR (MODERNE ET STYLE DE LA CAPTURE) */}
+            <div className="bg-white border-b border-gray-200/80 px-2 py-2 flex justify-between items-center shadow-xs overflow-x-auto gap-1 select-none theme-tab-bar flex-shrink-0 scrollbar-none">
+              {/* Matin Tab */}
+              <button
+                onClick={() => setActiveTab('matin')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'matin' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <Sunrise size={16} className={activeTab === 'matin' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Matin</span>
+                {activeTab === 'matin' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Journée Tab */}
+              <button
+                onClick={() => setActiveTab('journée')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'journée' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <Sun size={16} className={activeTab === 'journée' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Journée</span>
+                {activeTab === 'journée' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Soir Tab */}
+              <button
+                onClick={() => setActiveTab('soir')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'soir' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <Moon size={16} className={activeTab === 'soir' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Soir</span>
+                {activeTab === 'soir' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Progress Tab */}
+              <button
+                onClick={() => setActiveTab('progres')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'progres' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <BarChart2 size={16} className={activeTab === 'progres' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Progress</span>
+                {activeTab === 'progres' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Calendrier Tab */}
+              <button
+                onClick={() => setActiveTab('calendrier')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'calendrier' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <Calendar size={16} className={activeTab === 'calendrier' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Agenda</span>
+                {activeTab === 'calendrier' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Timer Tab */}
+              <button
+                onClick={() => setActiveTab('timer')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'timer' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <Timer size={16} className={activeTab === 'timer' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Timer</span>
+                {activeTab === 'timer' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Ajouter Tab */}
+              <button
+                onClick={() => setActiveTab('planificateur')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'planificateur' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <PlusCircle size={16} className={activeTab === 'planificateur' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Ajouter</span>
+                {activeTab === 'planificateur' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+
+              {/* Settings Tab */}
+              <button
+                onClick={() => setActiveTab('reglages')}
+                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1 transition-all cursor-pointer relative ${
+                  activeTab === 'reglages' ? 'text-[#f15a24] font-bold theme-tab-active' : 'text-gray-400 hover:text-gray-600 theme-tab-inactive'
+                }`}
+              >
+                <Settings size={16} className={activeTab === 'reglages' ? 'text-[#f15a24] theme-icon-active' : 'text-gray-400'} />
+                <span className="text-[9px] font-semibold tracking-tight">Réglages</span>
+                {activeTab === 'reglages' && <div className="absolute bottom-[-9px] left-1 right-1 h-[2.5px] bg-[#f15a24] rounded-full theme-tab-indicator" />}
+              </button>
+            </div>
+
             {/* TABS CONTAINER (MAIN VIEWPORTS) */}
             <div className="flex-1 overflow-hidden flex flex-col bg-gray-50/50">
               {activeTab === 'matin' && (
@@ -673,9 +790,9 @@ export default function App() {
                 />
               )}
 
-              {activeTab === 'annee' && (
-                <AnnualReport
-                  state={{ profile, customTasks, history, chatMessages }}
+              {activeTab === 'timer' && (
+                <TimerPanel
+                  profile={profile}
                   textScale={profile.textScale}
                 />
               )}
@@ -701,97 +818,6 @@ export default function App() {
                   onLogout={handleLogout}
                 />
               )}
-            </div>
-
-            {/* BOTTOM NAVIGATION BAR */}
-            <div className="bg-white border-t border-gray-100 px-2 py-3 flex justify-between items-center shadow-lg rounded-b-[40px] overflow-x-auto gap-1 select-none">
-              {/* Matin Tab */}
-              <button
-                onClick={() => setActiveTab('matin')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'matin' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <Sunrise size={18} />
-                <span className="text-[10px] tracking-tight">Matin</span>
-              </button>
-
-              {/* Journée Tab */}
-              <button
-                onClick={() => setActiveTab('journée')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'journée' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <Sun size={18} />
-                <span className="text-[10px] tracking-tight font-medium">Jour</span>
-              </button>
-
-              {/* Soir Tab */}
-              <button
-                onClick={() => setActiveTab('soir')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'soir' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <Moon size={18} />
-                <span className="text-[10px] tracking-tight">Soir</span>
-              </button>
-
-              {/* Progress Tab */}
-              <button
-                onClick={() => setActiveTab('progres')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'progres' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <BarChart2 size={18} />
-                <span className="text-[10px] tracking-tight">Progrès</span>
-              </button>
-
-              {/* Calendrier Tab */}
-              <button
-                onClick={() => setActiveTab('calendrier')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'calendrier' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <Calendar size={18} />
-                <span className="text-[10px] tracking-tight">Calendrier</span>
-              </button>
-
-              {/* Année Tab */}
-              <button
-                onClick={() => setActiveTab('annee')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'annee' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <Award size={18} />
-                <span className="text-[10px] tracking-tight">Année</span>
-              </button>
-
-              {/* Planificateur Tab */}
-              <button
-                onClick={() => setActiveTab('planificateur')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'planificateur' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <PlusCircle size={18} />
-                <span className="text-[10px] tracking-tight">Ajouter</span>
-              </button>
-
-              {/* Settings Tab */}
-              <button
-                onClick={() => setActiveTab('reglages')}
-                className={`flex flex-col items-center gap-1 flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  activeTab === 'reglages' ? 'text-[#f15a24] font-bold bg-[#f15a24]/5' : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                <Settings size={18} />
-                <span className="text-[10px] tracking-tight">Réglages</span>
-              </button>
             </div>
           </>
         )}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AppState, Task, DEFAULT_TASKS } from '../types';
 import { getWeekRangeForDate, formatFullFrenchDate, MONTH_NAMES_FR, MONTH_SHORT_FR, DAY_NAMES_FR } from '../utils/dateUtils';
 import { Flame, Calendar, CheckCircle2, XCircle, ChevronDown, ChevronUp, AlertCircle, Info } from 'lucide-react';
+import AnnualReport from './AnnualReport';
 
 interface ProgressDashboardProps {
   state: AppState;
@@ -10,7 +11,7 @@ interface ProgressDashboardProps {
 }
 
 export default function ProgressDashboard({ state, allTasks, textScale }: ProgressDashboardProps) {
-  const [subTab, setSubTab] = useState<'aujourdhui' | 'semaines' | 'mois'>('aujourdhui');
+  const [subTab, setSubTab] = useState<'aujourdhui' | 'semaines' | 'mois' | 'annuel'>('aujourdhui');
   const [expandTodayTasks, setExpandTodayTasks] = useState(false);
   const [selectedWeekDay, setSelectedWeekDay] = useState<string | null>(null);
 
@@ -66,7 +67,7 @@ export default function ProgressDashboard({ state, allTasks, textScale }: Progre
     <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 bg-[#0A0B0E] text-slate-200">
       {/* Sub-tabs Selector */}
       <div className="flex bg-[#12141C] p-1 rounded-xl border border-slate-800/80 shadow-2xs">
-        {(['aujourdhui', 'semaines', 'mois'] as const).map((tab) => (
+        {(['aujourdhui', 'semaines', 'mois', 'annuel'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => {
@@ -79,7 +80,7 @@ export default function ProgressDashboard({ state, allTasks, textScale }: Progre
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#161922]'
             }`}
           >
-            {tab === 'aujourdhui' ? "Aujourd'hui" : tab === 'semaines' ? 'Semaines' : 'Bilan Mois'}
+            {tab === 'aujourdhui' ? "Aujourd'hui" : tab === 'semaines' ? 'Semaine' : tab === 'mois' ? 'Bilan Mois' : 'Bilan Annuel'}
           </button>
         ))}
       </div>
@@ -369,6 +370,11 @@ export default function ProgressDashboard({ state, allTasks, textScale }: Progre
             </div>
           </div>
         </div>
+      )}
+
+      {/* 4. ANNUAL REPORT SUB-TAB */}
+      {subTab === 'annuel' && (
+        <AnnualReport state={state} textScale={textScale} isSubTab={true} />
       )}
     </div>
   );
