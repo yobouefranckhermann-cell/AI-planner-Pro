@@ -11,8 +11,11 @@ import TaskPlanner from './components/TaskPlanner';
 import SettingsPanel from './components/SettingsPanel';
 import { 
   Sunrise, Sun, Moon, BarChart2, Calendar, Timer, PlusCircle, Settings, 
-  Sparkles, CheckCircle2, User, Mail, ShieldCheck, RefreshCw, KeyRound
+  Sparkles, CheckCircle2, User, Mail, ShieldCheck, RefreshCw, KeyRound, Lock, Smartphone
 } from 'lucide-react';
+import { db } from './lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { saveUserState, loadUserState, generateAndSaveOTP, verifyOTP } from './lib/firestoreService';
 
 const LOCAL_STORAGE_KEY = 'ai_planner_pro_state_v1';
 
@@ -52,7 +55,20 @@ export default function App() {
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginName, setLoginName] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPhone, setLoginPhone] = useState('');
+  const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
   const [rememberMe, setRememberMe] = useState(true);
+
+  // OTP Verification States
+  const [otpSent, setOtpSent] = useState(false);
+  const [enteredOtp, setEnteredOtp] = useState('');
+  const [latestGeneratedOtp, setLatestGeneratedOtp] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [retrievingDemo, setRetrievingDemo] = useState(false);
+  const [smtpStatus, setSmtpStatus] = useState<'idle' | 'sent' | 'not_configured' | 'error' | 'bad_credentials'>('idle');
+  const [smsStatus, setSmsStatus] = useState<'idle' | 'sent' | 'limit_reached' | 'error'>('idle');
+  const [showSmtpGuide, setShowSmtpGuide] = useState(false);
+  const [showSmsGuide, setShowSmsGuide] = useState(false);
 
   // Clock
   const [currentTime, setCurrentTime] = useState('');
@@ -97,13 +113,24 @@ export default function App() {
     }
   }, [profile.theme]);
 
-  // 2. STATE PERSISTENCE (LOCAL STORAGE)
+  // 2. STATE PERSISTENCE (LOCAL STORAGE & GOOGLE FIRESTORE BACKGROUND SYNC)
   useEffect(() => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed: AppState = JSON.parse(stored);
-        let loadedTasks = parsed.customTasks || [];
+    const initApp = async () => {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      let localParsed: AppState | null = null;
+      if (stored) {
+        try {
+          localParsed = JSON.parse(stored);
+        } catch (e) {
+          console.error('Error parsing stored local state', e);
+        }
+      }
+
+      // Check if auto-logged in
+      const isLogged = localStorage.getItem('ai_planner_logged_in') === 'true';
+
+      if (localParsed) {
+        let loadedTasks = localParsed.customTasks || [];
         
         // Migrate defaults to customTasks so they are fully editable
         const hasDefaults = loadedTasks.some(t => t.id === 'm1' || t.id === 's1');
@@ -114,57 +141,74 @@ export default function App() {
         }
         setCustomTasks(loadedTasks);
 
-        if (parsed.profile) {
+        if (localParsed.profile) {
           const profileWithTheme = {
             ...INITIAL_PROFILE,
-            ...parsed.profile,
-            theme: parsed.profile.theme || 'noir', // Default to noir
-            language: parsed.profile.language || 'fr' // Default to fr
+            ...localParsed.profile,
+            theme: localParsed.profile.theme || 'noir', // Default to noir
+            language: localParsed.profile.language || 'fr' // Default to fr
           };
           setProfile(profileWithTheme);
 
-          // Check if auto-logged in
-          const isLogged = localStorage.getItem('ai_planner_logged_in') === 'true';
-          if (isLogged && profileWithTheme.email && profileWithTheme.name) {
+          const activeIdentifier = profileWithTheme.email || profileWithTheme.phone;
+
+          if (isLogged && activeIdentifier) {
             setIsLoggedIn(true);
             setLoginName(profileWithTheme.name || '');
             setLoginEmail(profileWithTheme.email || '');
+            setLoginPhone(profileWithTheme.phone || '');
+
+            // Real-time restoration from Google Firestore in the background
+            try {
+              const cloudState = await loadUserState(activeIdentifier);
+              if (cloudState) {
+                if (cloudState.profile) setProfile(cloudState.profile);
+                if (cloudState.customTasks) setCustomTasks(cloudState.customTasks);
+                if (cloudState.history) setHistory(prev => ({ ...prev, ...cloudState.history }));
+                if (cloudState.chatMessages) setChatMessages(cloudState.chatMessages);
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudState));
+              }
+            } catch (err) {
+              console.error('Error syncing Firestore state on startup:', err);
+            }
           } else {
             setLoginName('');
             setLoginEmail('');
+            setLoginPhone('');
           }
         } else {
           setProfile({ ...INITIAL_PROFILE, theme: 'noir', language: 'fr' });
           setLoginName('');
           setLoginEmail('');
+          setLoginPhone('');
         }
         
         // Merge stored history with the default seeded history
-        if (parsed.history) {
+        if (localParsed.history) {
           setHistory({
             ...INITIAL_HISTORY,
-            ...parsed.history
+            ...localParsed.history
           });
         }
-        if (parsed.chatMessages) setChatMessages(parsed.chatMessages);
-      } catch (e) {
-        console.error('Error loading state from localStorage', e);
+        if (localParsed.chatMessages) setChatMessages(localParsed.chatMessages);
+      } else {
+        // First run: save standard seeds
+        const defaultState: AppState = {
+          profile: { ...INITIAL_PROFILE, theme: 'noir' },
+          customTasks: [...DEFAULT_TASKS],
+          history: INITIAL_HISTORY,
+          chatMessages: [],
+        };
+        setCustomTasks([...DEFAULT_TASKS]);
+        setProfile({ ...INITIAL_PROFILE, theme: 'noir' });
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(defaultState));
       }
-    } else {
-      // First run: save standard seeds
-      const defaultState: AppState = {
-        profile: { ...INITIAL_PROFILE, theme: 'noir' },
-        customTasks: [...DEFAULT_TASKS],
-        history: INITIAL_HISTORY,
-        chatMessages: [],
-      };
-      setCustomTasks([...DEFAULT_TASKS]);
-      setProfile({ ...INITIAL_PROFILE, theme: 'noir' });
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(defaultState));
-    }
+    };
+
+    initApp();
   }, []);
 
-  // Sync to local storage whenever state changes
+  // Sync to local storage and Google Firestore whenever state changes
   const saveStateToLocalStorage = (
     updatedProfile: UserProfile,
     updatedCustomTasks: Task[],
@@ -177,105 +221,227 @@ export default function App() {
       chatMessages,
     };
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(fullState));
+
+    // Auto-sync with Firestore in real-time if logged in
+    const isLogged = localStorage.getItem('ai_planner_logged_in') === 'true';
+    const activeId = updatedProfile.email || updatedProfile.phone;
+    if (isLogged && activeId) {
+      saveUserState(activeId, fullState).catch(e => {
+        console.error('Failed to sync to Firestore in background:', e);
+      });
+    }
   };
 
-  // 3. SYNC WITH BACKEND CLOUD DATABASE FOR GMAIL USER
+  // 3. SYNC WITH GOOGLE FIRESTORE
   const syncWithCloudServer = async (): Promise<{ success: boolean; message: string }> => {
-    if (!profile.email) {
-      return { success: false, message: 'Email requis pour la synchronisation.' };
+    const activeId = profile.email || profile.phone;
+    if (!activeId) {
+      return { success: false, message: 'Email ou Téléphone requis pour la synchronisation.' };
     }
 
     try {
-      const stateToSave = {
+      const stateToSave: AppState = {
         profile,
         customTasks,
         history,
         chatMessages,
       };
 
-      const response = await fetch(`/api/state?email=${encodeURIComponent(profile.email)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(stateToSave),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        return { success: true, message: 'Données sauvegardées en ligne avec succès !' };
+      const success = await saveUserState(activeId, stateToSave);
+      if (success) {
+        return { success: true, message: 'Données sauvegardées sur Google Firestore avec succès !' };
       } else {
-        return { success: false, message: `Échec de sauvegarde : ${data.message}` };
+        return { success: false, message: 'Échec de sauvegarde sur Google Firestore.' };
       }
     } catch (e: any) {
-      console.error('Error syncing with cloud', e);
-      return { success: false, message: `Erreur serveur : ${e.message}` };
+      console.error('Error syncing with Firestore:', e);
+      return { success: false, message: `Erreur Firestore : ${e.message}` };
     }
   };
 
-  // Fetch from Cloud (Restore)
+  // Fetch from Google Firestore (Restore)
   const fetchStateFromCloud = async (email: string) => {
     try {
-      const response = await fetch(`/api/state?email=${encodeURIComponent(email)}`);
-      const data = await response.json();
-      if (data.success && data.state) {
-        const cloudState: AppState = data.state;
+      const cloudState = await loadUserState(email);
+      if (cloudState) {
         if (cloudState.profile) setProfile(cloudState.profile);
         if (cloudState.customTasks) setCustomTasks(cloudState.customTasks);
         if (cloudState.history) setHistory(cloudState.history);
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudState));
-        return { success: true, message: 'Vos données cloud ont été restaurées avec succès !' };
+        return { success: true, message: 'Vos données cloud ont été restaurées depuis Firestore avec succès !' };
       } else {
-        return { success: false, message: 'Aucun profil trouvé en ligne. Synchronisation locale activée.' };
+        return { success: false, message: 'Aucun profil trouvé sur Google Firestore. Synchronisation locale activée.' };
       }
     } catch (e: any) {
       return { success: false, message: `Erreur de restauration : ${e.message}` };
     }
   };
 
-  // 3.5. LOGIN & LOGOUT HANDLERS
-  const handleLogin = async (enteredName: string, enteredEmail: string, keepMeLoggedIn: boolean) => {
-    setLoginLoading(true);
-    const updatedProfile = {
-      ...profile,
-      name: enteredName.trim() || 'Franck',
-      email: enteredEmail.trim() || 'yobouefranckhermann@gmail.com',
-    };
-    
-    setProfile(updatedProfile);
-    saveStateToLocalStorage(updatedProfile, customTasks, history);
-    
-    if (keepMeLoggedIn) {
-      localStorage.setItem('ai_planner_logged_in', 'true');
-    } else {
-      localStorage.removeItem('ai_planner_logged_in');
+  // 3.5. SECURE GMAIL & SMS VERIFICATION, LOGIN & LOGOUT HANDLERS
+  const handleRequestOtp = async (enteredName: string, enteredEmail: string) => {
+    const activeIdentifier = authMethod === 'email' ? enteredEmail.trim() : loginPhone.trim();
+
+    if (!activeIdentifier) {
+      if (authMethod === 'email') {
+        setOtpError("Veuillez entrer une adresse e-mail Gmail valide.");
+      } else {
+        setOtpError("Veuillez entrer un numéro de téléphone valide (ex. +2250707070707).");
+      }
+      return;
     }
-    
+
+    setOtpError('');
+    setLoginLoading(true);
+    setSmtpStatus('idle');
+    setSmsStatus('idle');
+
     try {
-      const response = await fetch(`/api/state?email=${encodeURIComponent(enteredEmail.trim())}`);
-      const data = await response.json();
-      if (data.success && data.state) {
-        const cloudState: AppState = data.state;
-        if (cloudState.profile) setProfile(cloudState.profile);
+      const code = await generateAndSaveOTP(activeIdentifier);
+      if (code) {
+        setLatestGeneratedOtp(code);
+        setOtpSent(true);
+
+        if (authMethod === 'email') {
+          // Attempt sending the OTP email via backend
+          try {
+            const response = await fetch('/api/send-otp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: enteredEmail.trim(),
+                code: code,
+                name: enteredName.trim() || 'Franck'
+              })
+            });
+            const resData = await response.json();
+            if (resData.success) {
+              if (resData.emailed) {
+                setSmtpStatus('sent');
+              } else if (resData.message === 'SMTP_NOT_CONFIGURED') {
+                setSmtpStatus('not_configured');
+              } else {
+                setSmtpStatus('error');
+              }
+            } else {
+              if (resData.isBadCredentials) {
+                setSmtpStatus('bad_credentials');
+              } else {
+                setSmtpStatus('error');
+              }
+              console.error('SMTP error returned:', resData.message);
+            }
+          } catch (mailErr) {
+            console.error('Failed to trigger SMTP email API:', mailErr);
+            setSmtpStatus('error');
+          }
+        } else {
+          // Attempt sending the OTP SMS via backend
+          try {
+            const response = await fetch('/api/send-sms-otp', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phone: loginPhone.trim(),
+                code: code
+              })
+            });
+            const resData = await response.json();
+            if (resData.success) {
+              setSmsStatus('sent');
+            } else {
+              if (resData.quotaExceeded) {
+                setSmsStatus('limit_reached');
+              } else {
+                setSmsStatus('error');
+              }
+              console.error('SMS error returned:', resData.message);
+            }
+          } catch (smsErr) {
+            console.error('Failed to trigger SMS API:', smsErr);
+            setSmsStatus('error');
+          }
+        }
+      } else {
+        setOtpError("Impossible de générer le code de sécurité. Vérifiez vos paramètres Firestore.");
+      }
+    } catch (err: any) {
+      setOtpError(`Erreur : ${err.message}`);
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleVerifyAndLogin = async (enteredName: string, enteredEmail: string, keepMeLoggedIn: boolean) => {
+    if (!enteredOtp.trim()) {
+      setOtpError("Veuillez saisir le code à 6 chiffres.");
+      return;
+    }
+    setOtpError('');
+    setLoginLoading(true);
+
+    const activeIdentifier = authMethod === 'email' ? enteredEmail.trim().toLowerCase() : loginPhone.trim();
+
+    try {
+      const isValid = await verifyOTP(activeIdentifier, enteredOtp);
+      if (!isValid) {
+        setOtpError("Code de vérification incorrect ou expiré. Veuillez réessayer.");
+        setLoginLoading(false);
+        return;
+      }
+
+      // Validated! Construct user profile
+      const updatedProfile = {
+        ...profile,
+        name: enteredName.trim() || 'Franck',
+        email: authMethod === 'email' ? enteredEmail.trim().toLowerCase() : '',
+        phone: authMethod === 'phone' ? loginPhone.trim() : '',
+      };
+      setProfile(updatedProfile);
+
+      // Load existing user data from Google Firestore
+      const cloudState = await loadUserState(activeIdentifier);
+      if (cloudState) {
+        if (cloudState.profile) {
+          setProfile({
+            ...cloudState.profile,
+            name: enteredName.trim() || cloudState.profile.name || 'Franck',
+            email: authMethod === 'email' ? enteredEmail.trim().toLowerCase() : (cloudState.profile.email || ''),
+            phone: authMethod === 'phone' ? loginPhone.trim() : (cloudState.profile.phone || '')
+          });
+        }
         if (cloudState.customTasks) setCustomTasks(cloudState.customTasks);
         if (cloudState.history) setHistory(cloudState.history);
+        if (cloudState.chatMessages) setChatMessages(cloudState.chatMessages);
+        
+        // Save merged state to localStorage
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(cloudState));
       } else {
-        // Fresh cloud email. Sync current local storage to initiate their cloud database
+        // Fresh cloud user. Sync current local storage to initiate their cloud database doc
         const stateToSave = {
           profile: updatedProfile,
           customTasks,
           history,
           chatMessages,
         };
-        await fetch(`/api/state?email=${encodeURIComponent(enteredEmail.trim())}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(stateToSave),
-        });
+        await saveUserState(activeIdentifier, stateToSave);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(stateToSave));
       }
-    } catch (e) {
-      console.error('Error logging in & syncing', e);
-    } finally {
+
+      if (keepMeLoggedIn) {
+        localStorage.setItem('ai_planner_logged_in', 'true');
+      } else {
+        localStorage.removeItem('ai_planner_logged_in');
+      }
+
       setIsLoggedIn(true);
+      // Clean up verification states
+      setOtpSent(false);
+      setEnteredOtp('');
+      setLatestGeneratedOtp('');
+    } catch (e: any) {
+      console.error('Error logging in & syncing', e);
+      setOtpError(`Erreur d'authentification : ${e.message}`);
+    } finally {
       setLoginLoading(false);
     }
   };
@@ -284,7 +450,11 @@ export default function App() {
     localStorage.removeItem('ai_planner_logged_in');
     setLoginName('');
     setLoginEmail('');
+    setLoginPhone('');
     setIsLoggedIn(false);
+    setOtpSent(false);
+    setEnteredOtp('');
+    setLatestGeneratedOtp('');
   };
 
   // 4. HANDLERS FOR TASK INTERACTION
@@ -499,98 +669,179 @@ export default function App() {
     >
       {/* Phone container */}
       <div className={`w-full sm:max-w-md h-screen sm:h-[850px] bg-white flex flex-col relative sm:rounded-[40px] sm:shadow-2xl overflow-hidden border-4 border-slate-900/10 theme-${profile.theme || 'noir'}`}>
-        
         {!isLoggedIn ? (
           <div className="flex-1 flex flex-col justify-between p-6 bg-[#0A0B0E] text-slate-200 overflow-y-auto">
             {/* Top Logo and Title */}
-            <div className="flex flex-col items-center text-center gap-2 mt-8 mb-6">
-              <div className="w-16 h-16 bg-emerald-500/10 rounded-full border border-emerald-500/20 flex items-center justify-center animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.1)]">
-                <Sparkles size={32} className="text-emerald-400" />
+            <div className="flex flex-col items-center text-center gap-2 mt-4 mb-4">
+              <div className="w-14 h-14 bg-emerald-500/10 rounded-full border border-emerald-500/20 flex items-center justify-center animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                <Sparkles size={28} className="text-emerald-400" />
               </div>
               <h2 className="text-xl font-black text-slate-100 uppercase tracking-widest font-mono mt-2">
                 Discipline Pro
               </h2>
               <p className="text-xs text-slate-400">
-                AI Life Coach & Stoic Task Planner
+                Garantie de Sécurité & Base de Données Google
               </p>
             </div>
 
             {/* Inputs Form */}
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                  <User size={12} className="text-emerald-400" />
-                  Votre Nom Complet
-                </label>
-                <input
-                  type="text"
-                  value={loginName}
-                  onChange={(e) => setLoginName(e.target.value)}
-                  placeholder="Ex. Franck"
-                  className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-600 font-medium"
-                  required
-                />
-              </div>
+              {!otpSent ? (
+                /* PHASE 1: ENTER NAME & EMAIL */
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <User size={12} className="text-emerald-400" />
+                      Nom d'utilisateur / Votre Nom
+                    </label>
+                    <input
+                      type="text"
+                      value={loginName}
+                      onChange={(e) => setLoginName(e.target.value)}
+                      placeholder="Ex. Franck"
+                      className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-600 font-medium"
+                      required
+                    />
+                  </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                  <Mail size={12} className="text-emerald-400" />
-                  Votre Adresse Gmail
-                </label>
-                <input
-                  type="email"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="Ex. yobouefranckhermann@gmail.com"
-                  className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-600 font-medium"
-                  required
-                />
-              </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <Mail size={12} className="text-emerald-400" />
+                      Votre Adresse Gmail
+                    </label>
+                    <input
+                      type="email"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      placeholder="Ex. yobouefranckhermann@gmail.com"
+                      className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-200 placeholder-slate-600 font-medium"
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                /* PHASE 2: VERIFY CODE */
+                <>
+                  <div className="flex flex-col gap-1 text-center bg-slate-900/30 border border-slate-800/60 p-3 rounded-2xl mb-1">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono font-bold">Cible de vérification</span>
+                    <span className="text-xs font-semibold text-emerald-400">
+                      {loginEmail}
+                    </span>
+                    <button
+                      onClick={() => setOtpSent(false)}
+                      className="text-[9px] text-slate-500 hover:text-slate-300 font-semibold underline mt-1 cursor-pointer"
+                    >
+                      Modifier les coordonnées
+                    </button>
+                  </div>
 
-              {/* Checkbox Rester Connecté */}
-              <label className="flex items-center gap-2 cursor-pointer mt-1 select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded-md border-slate-800 bg-[#12141C] text-emerald-500 focus:ring-0 focus:ring-offset-0 focus:outline-none cursor-pointer"
-                />
-                <span className="text-[10.5px] text-slate-400 font-medium">Rester connecté sur cet appareil</span>
-              </label>
+                  {/* SMTP Sending Feedback Status Alerts */}
+                  {smtpStatus === 'sent' && (
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-[10px] text-emerald-400 leading-relaxed">
+                      📧 <strong>Code envoyé !</strong> Un e-mail contenant votre code de sécurité à 6 chiffres a été envoyé à <strong>{loginEmail}</strong>. Veuillez vérifier votre boîte de réception (et vos spams).
+                    </div>
+                  )}
 
-              {/* Safe & Secure Info Card */}
-              <div className="mt-4 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-3.5 flex items-start gap-2.5">
-                <ShieldCheck size={18} className="text-emerald-400 flex-shrink-0 mt-0.5" />
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[10.5px] font-bold text-emerald-400 uppercase tracking-wider font-mono">Garantie Sauvegarde Cloud</span>
-                  <span className="text-[10px] text-slate-400 leading-relaxed">
-                    Saisissez vos accès pour lier instantanément vos données locales à votre profil unique. Vos tâches, statistiques et historiques existants seront précieusement conservés.
-                  </span>
+                  {smtpStatus === 'not_configured' && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 text-[10px] text-amber-400 leading-relaxed">
+                      ℹ️ <strong>Moteur d'envoi Gmail en attente :</strong> Pour recevoir le code directement sur votre boîte Gmail, configurez vos variables <code>SMTP_USER</code> et <code>SMTP_PASS</code> dans les Secrets d'AI Studio.
+                    </div>
+                  )}
+
+                  {smtpStatus === 'error' && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-[10px] text-red-400 leading-relaxed">
+                      ❌ <strong>Erreur d'envoi SMTP :</strong> Nous n'avons pas pu distribuer l'e-mail. Vérifiez vos variables SMTP ou votre mot de passe d'application Gmail dans le panneau Secrets.
+                    </div>
+                  )}
+
+                  {smtpStatus === 'bad_credentials' && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-[10px] text-red-300 leading-relaxed flex flex-col gap-1.5">
+                      <span className="font-bold text-red-400 text-[10.5px]">⚠️ Identifiants Gmail Refusés (Erreur 535)</span>
+                      <p>
+                        Google a rejeté la connexion SMTP. Cela se produit lorsque vous utilisez votre mot de passe Gmail habituel au lieu d'un <strong>Mot de passe d'application</strong> sécurisé.
+                      </p>
+                      <div className="bg-black/40 rounded-lg p-2.5 border border-red-500/20 text-[9px] text-slate-300 flex flex-col gap-1 mt-0.5">
+                        <span className="font-semibold text-slate-200">🔧 Comment résoudre en 1 minute :</span>
+                        <ul className="list-disc list-inside space-y-1 text-slate-400 pl-1">
+                          <li>Activez la <strong>Validation en 2 étapes</strong> sur votre compte Gmail.</li>
+                          <li>Créez un <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer" className="text-emerald-400 underline font-semibold">Mot de passe d'application</a>.</li>
+                          <li>Copiez le code de <strong>16 caractères</strong> généré.</li>
+                          <li>Mettez à jour la variable <code>SMTP_PASS</code> dans le menu <strong>Settings &gt; Secrets</strong> d'AI Studio.</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono flex items-center gap-1.5 justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Lock size={12} className="text-emerald-400" />
+                        Saisir le Code OTP de Sécurité
+                      </span>
+                      <span className="text-[9px] text-slate-500">6 chiffres</span>
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={enteredOtp}
+                      onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ex. 123456"
+                      className="bg-[#12141C] border border-slate-800 rounded-xl px-3 py-3 text-center text-lg tracking-widest font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500 text-slate-100 placeholder-slate-700"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Error Display */}
+              {otpError && (
+                <div className="text-[10.5px] bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-2 rounded-xl text-center font-semibold leading-relaxed">
+                  ⚠️ {otpError}
                 </div>
-              </div>
+              )}
             </div>
 
             {/* CTA Button */}
-            <div className="mb-8">
-              <button
-                onClick={() => handleLogin(loginName, loginEmail, rememberMe)}
-                disabled={!loginName || !loginEmail || loginLoading}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800/80 disabled:text-slate-500 text-white rounded-2xl font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loginLoading ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Vérification & Synchronisation...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={14} />
-                    <span>Se Connecter & Accéder</span>
-                  </>
-                )}
-              </button>
+            <div className="mb-6">
+              {!otpSent ? (
+                <button
+                  onClick={() => handleRequestOtp(loginName, loginEmail)}
+                  disabled={!loginName || !loginEmail || loginLoading}
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800/80 disabled:text-slate-500 text-white rounded-2xl font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loginLoading ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Génération du code de sécurité...</span>
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound size={14} />
+                      <span>Demander mon Code par E-mail</span>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleVerifyAndLogin(loginName, loginEmail, rememberMe)}
+                  disabled={enteredOtp.length < 6 || loginLoading}
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-800/80 disabled:text-slate-500 text-white rounded-2xl font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loginLoading ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>Vérification & Synchronisation...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={14} />
+                      <span>Confirmer & Accéder à mes données</span>
+                    </>
+                  )}
+                </button>
+              )}
               <div className="text-center text-[9px] text-slate-600 font-mono mt-4 uppercase tracking-widest">
-                Stoic AI life coach v2.1 • Cloud Sync Active
+                Google Firestore Cloud • Connexion Sécurisée
               </div>
             </div>
           </div>
@@ -794,6 +1045,7 @@ export default function App() {
                 <TimerPanel
                   profile={profile}
                   textScale={profile.textScale}
+                  onUpdateProfile={handleUpdateProfile}
                 />
               )}
 

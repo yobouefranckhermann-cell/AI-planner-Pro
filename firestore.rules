@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Match any document in the users collection
+    match /users/{email} {
+      allow read, write: if true;
+    }
+    
+    // Match any document in the otps collection
+    match /otps/{email} {
+      allow read, write: if true;
+    }
+  }
+}

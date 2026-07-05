@@ -5,9 +5,10 @@ import { UserProfile } from '../types';
 interface TimerPanelProps {
   profile?: UserProfile;
   textScale: number;
+  onUpdateProfile?: (newProfile: UserProfile) => void;
 }
 
-export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
+export default function TimerPanel({ profile, textScale, onUpdateProfile }: TimerPanelProps) {
   // Picker state
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(37); // Set default to 37 minutes like screenshot!
@@ -20,13 +21,25 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
   const [voiceMessage, setVoiceMessage] = useState<string>('');
 
   useEffect(() => {
-    if (!voiceMessage) {
+    if (profile?.voiceMessage) {
+      setVoiceMessage(profile.voiceMessage);
+    } else {
       const defaultMsg = profile?.name 
         ? `C'est fini ${profile.name.trim()}, passe à autre chose.` 
         : "C'est fini, passe à autre chose.";
       setVoiceMessage(defaultMsg);
     }
-  }, [profile?.name]);
+  }, [profile?.voiceMessage, profile?.name]);
+
+  const handleSaveVoiceMessage = () => {
+    if (onUpdateProfile && profile) {
+      onUpdateProfile({
+        ...profile,
+        voiceMessage: voiceMessage
+      });
+      alert("Phrase vocale enregistrée avec succès ! Elle sera synchronisée.");
+    }
+  };
 
   // Active countdown state
   const [timeLeft, setTimeLeft] = useState<number | null>(null); // in seconds
@@ -638,13 +651,22 @@ export default function TimerPanel({ profile, textScale }: TimerPanelProps) {
             <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider font-mono">
               Message vocal personnalisé :
             </label>
-            <input
-              type="text"
-              value={voiceMessage}
-              onChange={(e) => setVoiceMessage(e.target.value)}
-              placeholder="Ex: C'est fini, passe à autre chose."
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-sans focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-            />
+            <div className="flex gap-1.5">
+              <input
+                type="text"
+                value={voiceMessage}
+                onChange={(e) => setVoiceMessage(e.target.value)}
+                placeholder="Ex: C'est fini, passe à autre chose."
+                className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 font-sans focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              />
+              <button
+                onClick={handleSaveVoiceMessage}
+                className="px-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                title="Enregistrer la phrase"
+              >
+                Sauver
+              </button>
+            </div>
           </div>
         )}
       </div>

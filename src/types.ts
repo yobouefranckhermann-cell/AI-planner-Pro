@@ -10,6 +10,7 @@ export interface Task {
 export interface UserProfile {
   name: string;
   email: string;
+  phone?: string;
   textScale: number; // e.g., 1.10 for 110%
   notifications: {
     tasks: boolean;
@@ -18,6 +19,7 @@ export interface UserProfile {
   };
   theme?: 'blanc' | 'noir' | 'orange';
   language?: 'fr' | 'en' | 'es';
+  voiceMessage?: string;
 }
 
 export interface DayProgress {

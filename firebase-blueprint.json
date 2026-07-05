@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile and settings",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "theme": { "type": "string" },
+        "language": { "type": "string" }
+      },
+      "required": ["email"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A scheduled or habit task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "time": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "type": { "type": "string" },
+        "category": { "type": "string" },
+        "streak": { "type": "number" },
+        "completedDates": { "type": "array" }
+      },
+      "required": ["id", "title"]
+    },
+    "OTP": {
+      "title": "OTP",
+      "description": "One-time password code for safe login verification",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "expiresAt": { "type": "number" },
+        "timestamp": { "type": "number" },
+        "email": { "type": "string" }
+      },
+      "required": ["code", "expiresAt", "email"]
+    }
+  },
+  "firestore": {
+    "/users/{email}": {
+      "schema": "UserProfile",
+      "description": "Stores user configuration, state, tasks, and historical progress mapped by lowercase e-mail address."
+    },
+    "/otps/{email}": {
+      "schema": "OTP",
+      "description": "Stores temporary 6-digit login verification codes generated for safe cross-device login."
+    }
+  }
+}
